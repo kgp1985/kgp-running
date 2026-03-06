@@ -6,7 +6,7 @@ const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 function getMondayOf(date) {
   const d = new Date(date)
   const day = d.getDay() // 0 = Sun, 1 = Mon … 6 = Sat
-  const diff = (day === 0 ? -6 : 1 - day) // shift so Monday = 0
+  const diff = (day === 0 ? -6 : 1 - day)
   d.setDate(d.getDate() + diff)
   d.setHours(0, 0, 0, 0)
   return d
@@ -29,29 +29,40 @@ function weekDates(monday) {
   })
 }
 
-// Build the last N complete week buckets (Mon–Sun) ending before this week,
-// plus the current (in-progress) week as week 0.
-function buildWeekBuckets(runs, count = 8) {
+// Build the last N complete week buckets plus the current in-progress week.
+// Also fetches extra historical weeks so the rolling average has data to look back on.
+function buildWeekBuckets(runs, displayCount = 8, lookback = 8) {
+  const total = displayCount + lookback
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const thisMonday = getMondayOf(today)
 
-  // Build a map: ISO date → total miles
   const dailyMiles = {}
   for (const r of runs) {
     dailyMiles[r.date] = (dailyMiles[r.date] || 0) + r.distance
   }
 
-  const weeks = []
-  for (let i = 0; i < count; i++) {
+  const allWeeks = []
+  for (let i = 0; i < total; i++) {
     const monday = new Date(thisMonday)
     monday.setDate(monday.getDate() - i * 7)
     const dates = weekDates(monday)
     const miles = dates.map(d => dailyMiles[d] || 0)
-    const total = miles.reduce((s, m) => s + m, 0)
-    weeks.unshift({ monday: new Date(monday), dates, miles, total, isCurrent: i === 0 })
+    const weekTotal = miles.reduce((s, m) => s + m, 0)
+    allWeeks.unshift({ monday: new Date(monday), dates, miles, total: weekTotal, isCurrent: i === 0 })
   }
-  return weeks
+
+  // Compute rolling 8-week average for each displayed week
+  // allWeeks[0..lookback-1] are the extra historical weeks (not displayed)
+  const displayWeeks = allWeeks.slice(lookback)
+  displayWeeks.forEach((w, i) => {
+    // window = this week + 7 weeks before it in allWeeks
+    const windowStart = i // index in allWeeks (lookback already shifted)
+    const window8 = allWeeks.slice(windowStart, windowStart + lookback)
+    w.rollingAvg = window8.reduce((s, wk) => s + wk.total, 0) / lookback
+  })
+
+  return displayWeeks
 }
 
 // Format week label: "Jan 6" style from its Monday
@@ -73,30 +84,39 @@ function buildYTicks(max) {
   return ticks
 }
 
-const CHART_HEIGHT = 120 // px — height of the bar area
+const CHART_HEIGHT = 120 // px
 
 export default function WeeklyMileage() {
   const { runs } = useRunningLogDb()
 
-  const weeks = buildWeekBuckets(runs, 8)
+  const weeks = buildWeekBuckets(runs, 8, 8)
   const currentWeek = weeks[weeks.length - 1]
-  const pastWeeks = weeks.slice(0, weeks.length - 1)
 
   // Today's day-of-week index for the current week strip
   const today = new Date()
   const todayISO = toLocalISO(today)
   const todayDayIdx = currentWeek.dates.indexOf(todayISO)
 
-  // Chart max and Y ticks
-  const chartMax = Math.max(...weeks.map(w => w.total), 1)
+  // Chart Y axis — scale to max of bars OR rolling avg points
+  const chartMax = Math.max(
+    ...weeks.map(w => w.total),
+    ...weeks.map(w => w.rollingAvg),
+    1
+  )
   const yTicks = buildYTicks(chartMax)
   const yAxisMax = yTicks[yTicks.length - 1]
 
-  // Average weekly mileage across all 8 weeks (zero weeks count toward the average)
-  const avgMiles = weeks.reduce((s, w) => s + w.total, 0) / weeks.length
+  // Build SVG polyline points for the rolling average line
+  // Each bar is equally spaced; we plot the point at the center of each bar
+  const barCount = weeks.length
+  // We'll use a viewBox of 0 0 100 100 (percent-based)
+  const linePoints = weeks.map((w, i) => {
+    const x = (i + 0.5) * (100 / barCount)
+    const y = 100 - (yAxisMax > 0 ? (w.rollingAvg / yAxisMax) * 100 : 0)
+    return `${x},${y}`
+  }).join(' ')
 
-  // Trend line Y position as a percentage from bottom
-  const avgPct = yAxisMax > 0 ? (avgMiles / yAxisMax) * 100 : 0
+  const currentAvg = weeks[weeks.length - 1].rollingAvg
 
   return (
     <div className="card space-y-6">
@@ -114,7 +134,6 @@ export default function WeeklyMileage() {
         <div className="grid grid-cols-7 gap-1">
           {DAY_LABELS.map((label, i) => {
             const miles = currentWeek.miles[i]
-            const isPast = todayDayIdx >= 0 && i < todayDayIdx
             const isToday = i === todayDayIdx
             const isFuture = todayDayIdx >= 0 && i > todayDayIdx
 
@@ -145,16 +164,30 @@ export default function WeeklyMileage() {
 
       {/* ── 8-week bar chart ── */}
       <div>
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-1">
           <p className="text-sm font-medium text-gray-600">Past 8 Weeks</p>
-          {avgMiles > 0 && (
+          {currentAvg > 0 && (
             <p className="text-xs text-gray-400">
-              avg <span className="font-semibold text-gray-600">{avgMiles.toFixed(1)} mi/wk</span>
+              8-wk avg <span className="font-semibold text-gray-600">{currentAvg.toFixed(1)} mi/wk</span>
             </p>
           )}
         </div>
 
-        {/* Chart area: Y axis + bars */}
+        {/* Legend */}
+        <div className="flex items-center gap-4 mb-3">
+          <div className="flex items-center gap-1.5">
+            <div className="w-3 h-3 rounded-sm bg-red-300" />
+            <span className="text-xs text-gray-400">Weekly miles</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <svg width="16" height="8" viewBox="0 0 16 8">
+              <polyline points="0,4 16,4" stroke="#6b7280" strokeWidth="2" strokeDasharray="3,2" fill="none" />
+            </svg>
+            <span className="text-xs text-gray-400">8-week rolling avg</span>
+          </div>
+        </div>
+
+        {/* Chart area: Y axis + bars + SVG trend line */}
         <div className="flex gap-2">
 
           {/* Y axis labels */}
@@ -169,12 +202,11 @@ export default function WeeklyMileage() {
             ))}
           </div>
 
-          {/* Bars + trend line container */}
+          {/* Bars + SVG trend line container */}
           <div className="flex-1 flex flex-col">
-            {/* Bar + trend line area */}
             <div
               className="relative flex items-end gap-1.5"
-              style={{ height: CHART_HEIGHT - 20 }} // leave 20px for X labels
+              style={{ height: CHART_HEIGHT - 20 }}
             >
               {/* Subtle grid lines */}
               {yTicks.map(tick => (
@@ -197,6 +229,8 @@ export default function WeeklyMileage() {
                     {/* Tooltip */}
                     <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
                       {weekLabel(w.monday)}: {w.total.toFixed(1)} mi
+                      <br />
+                      8-wk avg: {w.rollingAvg.toFixed(1)} mi/wk
                     </div>
                     {/* Bar */}
                     <div
@@ -209,17 +243,38 @@ export default function WeeklyMileage() {
                 )
               })}
 
-              {/* Trend line — horizontal dashed line at average */}
-              {avgMiles > 0 && (
-                <div
-                  className="absolute left-0 right-0 pointer-events-none"
-                  style={{ bottom: `${avgPct}%` }}
-                >
-                  <div className="relative">
-                    <div className="border-t-2 border-dashed border-gray-400 w-full" />
-                  </div>
-                </div>
-              )}
+              {/* SVG rolling average trend line — overlaid on top of bars */}
+              <svg
+                className="absolute inset-0 w-full h-full pointer-events-none overflow-visible"
+                viewBox="0 0 100 100"
+                preserveAspectRatio="none"
+              >
+                <polyline
+                  points={linePoints}
+                  fill="none"
+                  stroke="#6b7280"
+                  strokeWidth="1.5"
+                  strokeDasharray="3,2"
+                  vectorEffect="non-scaling-stroke"
+                />
+                {/* Dots at each data point */}
+                {weeks.map((w, i) => {
+                  const x = (i + 0.5) * (100 / barCount)
+                  const y = 100 - (yAxisMax > 0 ? (w.rollingAvg / yAxisMax) * 100 : 0)
+                  return (
+                    <circle
+                      key={i}
+                      cx={x}
+                      cy={y}
+                      r="2"
+                      fill="white"
+                      stroke="#6b7280"
+                      strokeWidth="1.5"
+                      vectorEffect="non-scaling-stroke"
+                    />
+                  )
+                })}
+              </svg>
             </div>
 
             {/* X-axis labels */}
@@ -234,6 +289,11 @@ export default function WeeklyMileage() {
             </div>
           </div>
         </div>
+
+        {/* Explanation */}
+        <p className="text-xs text-gray-400 mt-3 leading-relaxed">
+          Bars show total miles per week. The dashed line tracks your 8-week rolling average — each point represents the average weekly mileage over the preceding 8 weeks, giving you a smoothed view of how your training load is trending over time.
+        </p>
       </div>
 
       {/* Empty state */}
