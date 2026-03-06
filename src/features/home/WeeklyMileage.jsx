@@ -59,20 +59,47 @@ function weekLabel(monday) {
   return monday.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
+// Nice round Y-axis tick values
+function buildYTicks(max) {
+  if (max <= 0) return [0]
+  const rawStep = max / 4
+  const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)))
+  const step = Math.ceil(rawStep / magnitude) * magnitude
+  const ticks = []
+  for (let v = 0; v <= max + step; v += step) {
+    ticks.push(v)
+    if (v >= max) break
+  }
+  return ticks
+}
+
+const CHART_HEIGHT = 120 // px — height of the bar area
+
 export default function WeeklyMileage() {
   const { runs } = useRunningLogDb()
 
   const weeks = buildWeekBuckets(runs, 8)
-  const currentWeek = weeks[weeks.length - 1] // last in array = this week
-  const pastWeeks = weeks.slice(0, weeks.length - 1) // 7 prior weeks for chart
+  const currentWeek = weeks[weeks.length - 1]
+  const pastWeeks = weeks.slice(0, weeks.length - 1)
 
-  // Today's day-of-week index (0=Mon … 6=Sun) for the current week bar
+  // Today's day-of-week index for the current week strip
   const today = new Date()
   const todayISO = toLocalISO(today)
   const todayDayIdx = currentWeek.dates.indexOf(todayISO)
 
-  // Chart: use all 8 weeks for the bar graph
+  // Chart max and Y ticks
   const chartMax = Math.max(...weeks.map(w => w.total), 1)
+  const yTicks = buildYTicks(chartMax)
+  const yAxisMax = yTicks[yTicks.length - 1]
+
+  // Average weekly mileage (all 8 weeks including current)
+  const weeksWithRuns = weeks.filter(w => w.total > 0)
+  const avgMiles = weeksWithRuns.length > 0
+    ? weeksWithRuns.reduce((s, w) => s + w.total, 0) / weeksWithRuns.length
+    : 0
+
+  // Trend line Y position as a percentage from bottom
+  const avgPct = yAxisMax > 0 ? (avgMiles / yAxisMax) * 100 : 0
 
   return (
     <div className="card space-y-6">
@@ -96,7 +123,6 @@ export default function WeeklyMileage() {
 
             return (
               <div key={label} className="flex flex-col items-center gap-1">
-                {/* Mileage bubble */}
                 <div
                   className={`w-full rounded-lg flex items-center justify-center text-xs font-semibold py-2 transition-colors ${
                     miles > 0
@@ -122,39 +148,94 @@ export default function WeeklyMileage() {
 
       {/* ── 8-week bar chart ── */}
       <div>
-        <p className="text-sm font-medium text-gray-600 mb-3">Past 8 Weeks</p>
-        <div className="flex items-end gap-1.5 h-24">
-          {weeks.map((w, i) => {
-            const pct = chartMax > 0 ? w.total / chartMax : 0
-            const barH = Math.max(pct * 100, w.total > 0 ? 4 : 0) // min 4% if any miles
-            const isCurrent = w.isCurrent
-
-            return (
-              <div key={i} className="flex-1 flex flex-col items-center gap-1 h-full justify-end group relative">
-                {/* Tooltip */}
-                <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                  {weekLabel(w.monday)}: {w.total.toFixed(1)} mi
-                </div>
-                {/* Bar */}
-                <div
-                  className={`w-full rounded-t-sm transition-all duration-300 ${
-                    isCurrent ? 'bg-red-500' : 'bg-red-200 hover:bg-red-400'
-                  }`}
-                  style={{ height: `${barH}%`, minHeight: w.total > 0 ? '3px' : '0' }}
-                />
-              </div>
-            )
-          })}
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-sm font-medium text-gray-600">Past 8 Weeks</p>
+          {avgMiles > 0 && (
+            <p className="text-xs text-gray-400">
+              avg <span className="font-semibold text-gray-600">{avgMiles.toFixed(1)} mi/wk</span>
+            </p>
+          )}
         </div>
-        {/* X-axis labels */}
-        <div className="flex gap-1.5 mt-1">
-          {weeks.map((w, i) => (
-            <div key={i} className="flex-1 text-center">
-              <span className={`text-xs ${w.isCurrent ? 'font-bold text-red-600' : 'text-gray-400'}`}>
-                {w.isCurrent ? 'Now' : weekLabel(w.monday)}
+
+        {/* Chart area: Y axis + bars */}
+        <div className="flex gap-2">
+
+          {/* Y axis labels */}
+          <div
+            className="flex flex-col justify-between items-end shrink-0 pb-5"
+            style={{ height: CHART_HEIGHT }}
+          >
+            {[...yTicks].reverse().map(tick => (
+              <span key={tick} className="text-xs text-gray-400 leading-none">
+                {tick}
               </span>
+            ))}
+          </div>
+
+          {/* Bars + trend line container */}
+          <div className="flex-1 flex flex-col">
+            {/* Bar + trend line area */}
+            <div
+              className="relative flex items-end gap-1.5"
+              style={{ height: CHART_HEIGHT - 20 }} // leave 20px for X labels
+            >
+              {/* Subtle grid lines */}
+              {yTicks.map(tick => (
+                <div
+                  key={tick}
+                  className="absolute left-0 right-0 border-t border-gray-100"
+                  style={{ bottom: `${(tick / yAxisMax) * 100}%` }}
+                />
+              ))}
+
+              {/* Bars */}
+              {weeks.map((w, i) => {
+                const pct = yAxisMax > 0 ? (w.total / yAxisMax) * 100 : 0
+                const barH = Math.max(pct, w.total > 0 ? 2 : 0)
+                return (
+                  <div
+                    key={i}
+                    className="flex-1 flex flex-col items-center h-full justify-end group relative"
+                  >
+                    {/* Tooltip */}
+                    <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                      {weekLabel(w.monday)}: {w.total.toFixed(1)} mi
+                    </div>
+                    {/* Bar */}
+                    <div
+                      className={`w-full rounded-t-sm transition-all duration-300 ${
+                        w.isCurrent ? 'bg-red-500' : 'bg-red-200 hover:bg-red-400'
+                      }`}
+                      style={{ height: `${barH}%`, minHeight: w.total > 0 ? '3px' : '0' }}
+                    />
+                  </div>
+                )
+              })}
+
+              {/* Trend line — horizontal dashed line at average */}
+              {avgMiles > 0 && (
+                <div
+                  className="absolute left-0 right-0 pointer-events-none"
+                  style={{ bottom: `${avgPct}%` }}
+                >
+                  <div className="relative">
+                    <div className="border-t-2 border-dashed border-gray-400 w-full" />
+                  </div>
+                </div>
+              )}
             </div>
-          ))}
+
+            {/* X-axis labels */}
+            <div className="flex gap-1.5 mt-1">
+              {weeks.map((w, i) => (
+                <div key={i} className="flex-1 text-center">
+                  <span className={`text-xs ${w.isCurrent ? 'font-bold text-red-600' : 'text-gray-400'}`}>
+                    {w.isCurrent ? 'Now' : weekLabel(w.monday)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 
