@@ -92,11 +92,8 @@ export default function WeeklyMileage() {
   const yTicks = buildYTicks(chartMax)
   const yAxisMax = yTicks[yTicks.length - 1]
 
-  // Average weekly mileage (all 8 weeks including current)
-  const weeksWithRuns = weeks.filter(w => w.total > 0)
-  const avgMiles = weeksWithRuns.length > 0
-    ? weeksWithRuns.reduce((s, w) => s + w.total, 0) / weeksWithRuns.length
-    : 0
+  // Average weekly mileage across all 8 weeks (zero weeks count toward the average)
+  const avgMiles = weeks.reduce((s, w) => s + w.total, 0) / weeks.length
 
   // Trend line Y position as a percentage from bottom
   const avgPct = yAxisMax > 0 ? (avgMiles / yAxisMax) * 100 : 0
