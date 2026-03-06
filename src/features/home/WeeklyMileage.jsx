@@ -247,7 +247,7 @@ export default function WeeklyMileage() {
               <svg
                 className="absolute inset-0 w-full h-full pointer-events-none overflow-visible"
                 viewBox="0 0 100 100"
-                preserveAspectRatio="none"
+                preserveAspectRatio="xMidYMid meet"
               >
                 <polyline
                   points={linePoints}
@@ -257,20 +257,19 @@ export default function WeeklyMileage() {
                   strokeDasharray="3,2"
                   vectorEffect="non-scaling-stroke"
                 />
-                {/* Dots at each data point */}
+                {/* Round dots at each data point */}
                 {weeks.map((w, i) => {
                   const x = (i + 0.5) * (100 / barCount)
                   const y = 100 - (yAxisMax > 0 ? (w.rollingAvg / yAxisMax) * 100 : 0)
                   return (
                     <circle
                       key={i}
-                      cx={x}
-                      cy={y}
-                      r="2"
+                      cx={`${x}%`}
+                      cy={`${y}%`}
+                      r="4"
                       fill="white"
                       stroke="#6b7280"
                       strokeWidth="1.5"
-                      vectorEffect="non-scaling-stroke"
                     />
                   )
                 })}
