@@ -9,7 +9,7 @@ export default function RecentStats() {
 
   const StatBlock = ({ label, value, sub }) => (
     <div className="text-center p-4 bg-gray-50 rounded-xl">
-      <p className="text-2xl font-bold text-gray-900">{value}</p>
+      <p className="text-base font-bold text-gray-900 leading-tight break-words">{value}</p>
       {sub && <p className="text-xs text-red-500 font-medium">{sub}</p>}
       <p className="text-xs text-gray-500 mt-1">{label}</p>
     </div>
