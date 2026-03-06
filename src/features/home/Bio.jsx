@@ -13,12 +13,10 @@ export default function Bio() {
             where I track training, analyze performance, and keep pushing for new PRs.
           </p>
           <p>
-            {/* Customize this section with your background */}
-            I'm a passionate distance runner focused on continuous improvement. This site is where I log
-            every mile, study the science behind training, and chase my goals.
+            I'm a passionate distance runner focused on continuous improvement. I have run 5 marathons with a personal best of 2:57:40, 3 half marathons with a personal best of 1:20:42, and 2 10Ks with a personal best of 37:47. I hope to share what I have learned along the way and help others in their running journey.
           </p>
-          <p className="text-xs text-gray-400 italic">
-            Update this section in <code>src/features/home/Bio.jsx</code> with your personal background.
+          <p>
+            The goal of this site is to build something that allows everyone to track their runs, their progress, and learn more about training smart without the pressure of social media. I intend to continually add features to ultimately have a one stop shop for your training with logs, workouts, plans, and everything in between communicating with each other to set you up for success in your next race.
           </p>
         </div>
       </div>
