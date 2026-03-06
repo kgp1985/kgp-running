@@ -2,7 +2,7 @@ import { usePersonalRecordsDb } from '../../hooks/usePersonalRecordsDb.js'
 import { secondsToTimeStr } from '../../utils/paceCalc.js'
 import { formatDate } from '../../utils/formatters.js'
 
-const DISTANCE_ORDER = ['1 Mile', '5K', '10K', 'Half Marathon', 'Marathon']
+const DISTANCE_ORDER = ['Mile', '5K', '10K', 'Half Marathon', 'Marathon']
 
 export default function PersonalRecords() {
   const { prs } = usePersonalRecordsDb()

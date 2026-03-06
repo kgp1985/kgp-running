@@ -35,7 +35,6 @@ export async function upsertPR(userId, distanceLabel, time, date, raceName = '')
         time,
         date:           date || null,
         race_name:      raceName,
-        updated_at:     new Date().toISOString(),
       },
       { onConflict: 'user_id,distance_label' }
     )
