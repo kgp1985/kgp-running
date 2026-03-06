@@ -243,11 +243,11 @@ export default function WeeklyMileage() {
                 )
               })}
 
-              {/* SVG rolling average trend line — overlaid on top of bars */}
+              {/* SVG rolling average trend line (dashed line only, no dots) */}
               <svg
-                className="absolute inset-0 w-full h-full pointer-events-none overflow-visible"
+                className="absolute inset-0 w-full h-full pointer-events-none"
                 viewBox="0 0 100 100"
-                preserveAspectRatio="xMidYMid meet"
+                preserveAspectRatio="none"
               >
                 <polyline
                   points={linePoints}
@@ -257,23 +257,24 @@ export default function WeeklyMileage() {
                   strokeDasharray="3,2"
                   vectorEffect="non-scaling-stroke"
                 />
-                {/* Round dots at each data point */}
-                {weeks.map((w, i) => {
-                  const x = (i + 0.5) * (100 / barCount)
-                  const y = 100 - (yAxisMax > 0 ? (w.rollingAvg / yAxisMax) * 100 : 0)
-                  return (
-                    <circle
-                      key={i}
-                      cx={`${x}%`}
-                      cy={`${y}%`}
-                      r="4"
-                      fill="white"
-                      stroke="#6b7280"
-                      strokeWidth="1.5"
-                    />
-                  )
-                })}
               </svg>
+
+              {/* Round dots — rendered as absolutely positioned divs so they stay circular */}
+              {weeks.map((w, i) => {
+                const xPct = (i + 0.5) * (100 / barCount)
+                const yPct = 100 - (yAxisMax > 0 ? (w.rollingAvg / yAxisMax) * 100 : 0)
+                return (
+                  <div
+                    key={i}
+                    className="absolute pointer-events-none w-3 h-3 rounded-full bg-white border-2 border-gray-400"
+                    style={{
+                      left: `${xPct}%`,
+                      bottom: `${100 - yPct}%`,
+                      transform: 'translate(-50%, 50%)',
+                    }}
+                  />
+                )
+              })}
             </div>
 
             {/* X-axis labels */}
