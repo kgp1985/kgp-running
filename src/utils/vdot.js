@@ -80,7 +80,9 @@ export function getTrainingPaces(vdot) {
   const loEntry = VDOT_TABLE[lo]
   const hiEntry = VDOT_TABLE[hi] || loEntry
 
-  const marathon = interp(loEntry.marathon, hiEntry.marathon)
+  // Derive marathon pace from the pure formula so it's consistent with race predictions
+  const marathonRaceTime = predictRaceTime(vdot, 42195)
+  const marathon = Math.round(marathonRaceTime / 26.2188)
 
   return {
     // MP-anchored easy/recovery zones
@@ -93,24 +95,30 @@ export function getTrainingPaces(vdot) {
   }
 }
 
+// Race distances used for equivalent race predictions (meters)
+const EQUIVALENT_RACE_DISTANCES = {
+  '1500m':          1500,
+  '1mile':          1609.344,
+  '3K':             3000,
+  '5K':             5000,
+  '10K':            10000,
+  'HM':             21097.5,
+  'M':              42195,
+}
+
 /**
  * Get equivalent race times for a given VDOT across all standard distances.
+ * Uses the pure Daniels formula (predictRaceTime) for zero drift —
+ * the same VDOT derived from a marathon will predict that same marathon time back.
  * @param {number} vdot
  * @returns {Object} keyed by distance label, values in seconds
  */
 export function getEquivalentRaceTimes(vdot) {
   if (!vdot) return null
 
-  const lo = Math.max(30, Math.floor(vdot))
-  const hi = Math.min(85, Math.ceil(vdot))
-  const frac = vdot - lo
-
-  const loEntry = VDOT_TABLE[lo]
-  const hiEntry = VDOT_TABLE[hi] || loEntry
-
   const result = {}
-  for (const dist of Object.keys(loEntry.races)) {
-    result[dist] = Math.round(loEntry.races[dist] + (hiEntry.races[dist] - loEntry.races[dist]) * frac)
+  for (const [key, meters] of Object.entries(EQUIVALENT_RACE_DISTANCES)) {
+    result[key] = predictRaceTime(vdot, meters)
   }
   return result
 }
