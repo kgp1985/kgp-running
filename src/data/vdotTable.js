@@ -1,0 +1,68 @@
+// Jack Daniels VDOT Table
+// Training paces in seconds per mile:
+//   easy: [slow_end, fast_end]  — roughly 59-74% VO2max effort
+//   marathon                    — goal marathon race pace (≈ races.M / 26.2188)
+//   threshold                   — lactate threshold / tempo pace (~88% VO2max)
+//   interval                    — VO2max / 5K race pace (~98-100% VO2max)
+//   repetition                  — ~105-115% VO2max, speed/economy work
+// Race times in total seconds.
+// Sources: "Daniels' Running Formula" 3rd Ed. by Jack Daniels
+
+export const VDOT_TABLE = {
+  30: { easy: [636, 696], marathon: 715, threshold: 660, interval: 600, repetition: 576, races: { '1500m': 554, '1mile': 598, '3K': 1222, '5K': 2073, '10K': 4282, 'HM': 9034, 'M': 18738 } },
+  31: { easy: [621, 681], marathon: 695, threshold: 642, interval: 582, repetition: 559, races: { '1500m': 537, '1mile': 579, '3K': 1186, '5K': 2013, '10K': 4158, 'HM': 8774, 'M': 18210 } },
+  32: { easy: [606, 666], marathon: 676, threshold: 624, interval: 566, repetition: 543, races: { '1500m': 521, '1mile': 562, '3K': 1152, '5K': 1955, '10K': 4039, 'HM': 8524, 'M': 17706 } },
+  33: { easy: [592, 652], marathon: 658, threshold: 607, interval: 550, repetition: 528, races: { '1500m': 507, '1mile': 547, '3K': 1119, '5K': 1901, '10K': 3926, 'HM': 8285, 'M': 17225 } },
+  34: { easy: [578, 638], marathon: 640, threshold: 591, interval: 535, repetition: 514, races: { '1500m': 493, '1mile': 531, '3K': 1088, '5K': 1849, '10K': 3818, 'HM': 8058, 'M': 16768 } },
+  35: { easy: [565, 625], marathon: 623, threshold: 575, interval: 521, repetition: 500, races: { '1500m': 479, '1mile': 517, '3K': 1059, '5K': 1800, '10K': 3716, 'HM': 7840, 'M': 16330 } },
+  36: { easy: [553, 613], marathon: 607, threshold: 560, interval: 507, repetition: 487, races: { '1500m': 467, '1mile': 503, '3K': 1031, '5K': 1753, '10K': 3619, 'HM': 7633, 'M': 15912 } },
+  37: { easy: [541, 601], marathon: 592, threshold: 546, interval: 494, repetition: 474, races: { '1500m': 455, '1mile': 490, '3K': 1004, '5K': 1708, '10K': 3526, 'HM': 7435, 'M': 15513 } },
+  38: { easy: [530, 590], marathon: 578, threshold: 532, interval: 482, repetition: 462, races: { '1500m': 443, '1mile': 478, '3K': 979, '5K': 1665, '10K': 3438, 'HM': 7245, 'M': 15131 } },
+  39: { easy: [519, 579], marathon: 564, threshold: 520, interval: 470, repetition: 451, races: { '1500m': 432, '1mile': 466, '3K': 954, '5K': 1624, '10K': 3354, 'HM': 7063, 'M': 14764 } },
+  40: { easy: [508, 568], marathon: 550, threshold: 507, interval: 459, repetition: 440, races: { '1500m': 422, '1mile': 455, '3K': 930, '5K': 1585, '10K': 3274, 'HM': 6889, 'M': 14412 } },
+  41: { easy: [498, 558], marathon: 537, threshold: 496, interval: 448, repetition: 430, races: { '1500m': 412, '1mile': 444, '3K': 908, '5K': 1548, '10K': 3198, 'HM': 6721, 'M': 14073 } },
+  42: { easy: [488, 548], marathon: 525, threshold: 484, interval: 438, repetition: 420, races: { '1500m': 402, '1mile': 433, '3K': 886, '5K': 1512, '10K': 3125, 'HM': 6560, 'M': 13747 } },
+  43: { easy: [479, 539], marathon: 513, threshold: 474, interval: 428, repetition: 411, races: { '1500m': 393, '1mile': 423, '3K': 865, '5K': 1478, '10K': 3056, 'HM': 6406, 'M': 13432 } },
+  44: { easy: [470, 530], marathon: 501, threshold: 463, interval: 419, repetition: 402, races: { '1500m': 384, '1mile': 413, '3K': 845, '5K': 1445, '10K': 2989, 'HM': 6258, 'M': 13129 } },
+  45: { easy: [461, 521], marathon: 490, threshold: 453, interval: 410, repetition: 393, races: { '1500m': 375, '1mile': 404, '3K': 826, '5K': 1413, '10K': 2926, 'HM': 6115, 'M': 12837 } },
+  46: { easy: [452, 512], marathon: 479, threshold: 443, interval: 401, repetition: 385, races: { '1500m': 366, '1mile': 394, '3K': 808, '5K': 1383, '10K': 2865, 'HM': 5977, 'M': 12554 } },
+  47: { easy: [444, 504], marathon: 469, threshold: 433, interval: 392, repetition: 377, races: { '1500m': 358, '1mile': 385, '3K': 790, '5K': 1354, '10K': 2807, 'HM': 5844, 'M': 12281 } },
+  48: { easy: [436, 496], marathon: 459, threshold: 424, interval: 384, repetition: 369, races: { '1500m': 350, '1mile': 377, '3K': 773, '5K': 1326, '10K': 2751, 'HM': 5716, 'M': 12017 } },
+  49: { easy: [428, 488], marathon: 449, threshold: 415, interval: 376, repetition: 361, races: { '1500m': 342, '1mile': 368, '3K': 757, '5K': 1299, '10K': 2698, 'HM': 5592, 'M': 11762 } },
+  50: { easy: [421, 481], marathon: 440, threshold: 406, interval: 368, repetition: 354, races: { '1500m': 334, '1mile': 360, '3K': 741, '5K': 1273, '10K': 2647, 'HM': 5472, 'M': 11514 } },
+  51: { easy: [414, 474], marathon: 430, threshold: 397, interval: 360, repetition: 347, races: { '1500m': 327, '1mile': 352, '3K': 725, '5K': 1248, '10K': 2598, 'HM': 5356, 'M': 11274 } },
+  52: { easy: [407, 467], marathon: 421, threshold: 389, interval: 353, repetition: 340, races: { '1500m': 320, '1mile': 344, '3K': 710, '5K': 1224, '10K': 2551, 'HM': 5244, 'M': 11041 } },
+  53: { easy: [400, 460], marathon: 413, threshold: 381, interval: 346, repetition: 333, races: { '1500m': 313, '1mile': 337, '3K': 696, '5K': 1200, '10K': 2506, 'HM': 5136, 'M': 10815 } },
+  54: { easy: [394, 454], marathon: 405, threshold: 374, interval: 339, repetition: 326, races: { '1500m': 306, '1mile': 330, '3K': 682, '5K': 1178, '10K': 2462, 'HM': 5032, 'M': 10595 } },
+  55: { easy: [387, 447], marathon: 397, threshold: 366, interval: 332, repetition: 320, races: { '1500m': 300, '1mile': 323, '3K': 669, '5K': 1156, '10K': 2420, 'HM': 4931, 'M': 10382 } },
+  56: { easy: [381, 441], marathon: 389, threshold: 359, interval: 326, repetition: 314, races: { '1500m': 294, '1mile': 316, '3K': 656, '5K': 1134, '10K': 2379, 'HM': 4833, 'M': 10175 } },
+  57: { easy: [376, 436], marathon: 381, threshold: 352, interval: 320, repetition: 308, races: { '1500m': 288, '1mile': 310, '3K': 643, '5K': 1114, '10K': 2340, 'HM': 4738, 'M': 9974 } },
+  58: { easy: [370, 430], marathon: 374, threshold: 346, interval: 314, repetition: 302, races: { '1500m': 282, '1mile': 304, '3K': 631, '5K': 1094, '10K': 2303, 'HM': 4647, 'M': 9779 } },
+  59: { easy: [365, 425], marathon: 367, threshold: 340, interval: 308, repetition: 296, races: { '1500m': 277, '1mile': 298, '3K': 619, '5K': 1075, '10K': 2267, 'HM': 4558, 'M': 9589 } },
+  60: { easy: [360, 420], marathon: 360, threshold: 333, interval: 302, repetition: 291, races: { '1500m': 272, '1mile': 292, '3K': 608, '5K': 1056, '10K': 2232, 'HM': 4472, 'M': 9404 } },
+  61: { easy: [355, 415], marathon: 353, threshold: 327, interval: 297, repetition: 286, races: { '1500m': 267, '1mile': 286, '3K': 597, '5K': 1038, '10K': 2198, 'HM': 4388, 'M': 9224 } },
+  62: { easy: [350, 410], marathon: 346, threshold: 321, interval: 291, repetition: 281, races: { '1500m': 262, '1mile': 281, '3K': 586, '5K': 1020, '10K': 2166, 'HM': 4307, 'M': 9048 } },
+  63: { easy: [345, 405], marathon: 340, threshold: 316, interval: 286, repetition: 276, races: { '1500m': 257, '1mile': 276, '3K': 576, '5K': 1003, '10K': 2134, 'HM': 4228, 'M': 8877 } },
+  64: { easy: [341, 401], marathon: 333, threshold: 310, interval: 281, repetition: 271, races: { '1500m': 252, '1mile': 271, '3K': 566, '5K': 987, '10K': 2104, 'HM': 4152, 'M': 8710 } },
+  65: { easy: [337, 397], marathon: 327, threshold: 305, interval: 277, repetition: 266, races: { '1500m': 248, '1mile': 266, '3K': 556, '5K': 971, '10K': 2074, 'HM': 4078, 'M': 8548 } },
+  66: { easy: [332, 392], marathon: 321, threshold: 300, interval: 272, repetition: 262, races: { '1500m': 244, '1mile': 261, '3K': 547, '5K': 955, '10K': 2045, 'HM': 4006, 'M': 8389 } },
+  67: { easy: [328, 388], marathon: 315, threshold: 295, interval: 267, repetition: 258, races: { '1500m': 240, '1mile': 257, '3K': 537, '5K': 940, '10K': 2017, 'HM': 3936, 'M': 8234 } },
+  68: { easy: [324, 384], marathon: 309, threshold: 290, interval: 263, repetition: 253, races: { '1500m': 236, '1mile': 253, '3K': 528, '5K': 925, '10K': 1990, 'HM': 3868, 'M': 8083 } },
+  69: { easy: [320, 380], marathon: 303, threshold: 285, interval: 258, repetition: 249, races: { '1500m': 232, '1mile': 249, '3K': 519, '5K': 911, '10K': 1964, 'HM': 3803, 'M': 7935 } },
+  70: { easy: [316, 376], marathon: 298, threshold: 280, interval: 254, repetition: 245, races: { '1500m': 228, '1mile': 245, '3K': 511, '5K': 897, '10K': 1939, 'HM': 3739, 'M': 7791 } },
+  71: { easy: [313, 373], marathon: 292, threshold: 276, interval: 250, repetition: 241, races: { '1500m': 225, '1mile': 241, '3K': 502, '5K': 883, '10K': 1914, 'HM': 3677, 'M': 7650 } },
+  72: { easy: [309, 369], marathon: 287, threshold: 272, interval: 246, repetition: 237, races: { '1500m': 221, '1mile': 237, '3K': 494, '5K': 870, '10K': 1890, 'HM': 3617, 'M': 7512 } },
+  73: { easy: [306, 366], marathon: 282, threshold: 268, interval: 242, repetition: 233, races: { '1500m': 218, '1mile': 233, '3K': 486, '5K': 857, '10K': 1867, 'HM': 3558, 'M': 7377 } },
+  74: { easy: [302, 362], marathon: 277, threshold: 263, interval: 239, repetition: 230, races: { '1500m': 214, '1mile': 230, '3K': 478, '5K': 845, '10K': 1845, 'HM': 3502, 'M': 7246 } },
+  75: { easy: [299, 359], marathon: 272, threshold: 259, interval: 235, repetition: 226, races: { '1500m': 211, '1mile': 226, '3K': 471, '5K': 832, '10K': 1823, 'HM': 3447, 'M': 7117 } },
+  76: { easy: [296, 356], marathon: 267, threshold: 255, interval: 231, repetition: 223, races: { '1500m': 208, '1mile': 223, '3K': 463, '5K': 820, '10K': 1802, 'HM': 3393, 'M': 6991 } },
+  77: { easy: [293, 353], marathon: 263, threshold: 251, interval: 228, repetition: 220, races: { '1500m': 205, '1mile': 220, '3K': 456, '5K': 809, '10K': 1781, 'HM': 3341, 'M': 6868 } },
+  78: { easy: [290, 350], marathon: 258, threshold: 247, interval: 224, repetition: 216, races: { '1500m': 202, '1mile': 217, '3K': 449, '5K': 798, '10K': 1761, 'HM': 3291, 'M': 6748 } },
+  79: { easy: [287, 347], marathon: 254, threshold: 244, interval: 221, repetition: 213, races: { '1500m': 199, '1mile': 214, '3K': 442, '5K': 787, '10K': 1742, 'HM': 3242, 'M': 6630 } },
+  80: { easy: [284, 344], marathon: 249, threshold: 240, interval: 218, repetition: 210, races: { '1500m': 196, '1mile': 211, '3K': 436, '5K': 776, '10K': 1722, 'HM': 3194, 'M': 6515 } },
+  81: { easy: [282, 342], marathon: 245, threshold: 237, interval: 215, repetition: 207, races: { '1500m': 193, '1mile': 208, '3K': 429, '5K': 766, '10K': 1704, 'HM': 3148, 'M': 6402 } },
+  82: { easy: [279, 339], marathon: 241, threshold: 233, interval: 212, repetition: 204, races: { '1500m': 191, '1mile': 205, '3K': 423, '5K': 756, '10K': 1686, 'HM': 3103, 'M': 6292 } },
+  83: { easy: [277, 337], marathon: 237, threshold: 230, interval: 209, repetition: 201, races: { '1500m': 188, '1mile': 202, '3K': 417, '5K': 746, '10K': 1668, 'HM': 3059, 'M': 6184 } },
+  84: { easy: [274, 334], marathon: 233, threshold: 227, interval: 206, repetition: 198, races: { '1500m': 186, '1mile': 199, '3K': 411, '5K': 736, '10K': 1651, 'HM': 3016, 'M': 6078 } },
+  85: { easy: [272, 332], marathon: 229, threshold: 224, interval: 203, repetition: 195, races: { '1500m': 183, '1mile': 197, '3K': 405, '5K': 726, '10K': 1634, 'HM': 2974, 'M': 5974 } },
+}
