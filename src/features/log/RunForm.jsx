@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { WORKOUT_TYPES } from '../../data/workoutTypes.js'
 import { timeStrToSeconds } from '../../utils/paceCalc.js'
+import { useShoesDb } from '../../hooks/useShoesDb.js'
 
 const WEATHER_OPTIONS = ['Sunny', 'Cloudy', 'Rainy', 'Windy', 'Hot', 'Cold', 'Humid', 'Snow', 'Perfect']
 
@@ -13,11 +14,13 @@ const DEFAULT_FORM = {
   workoutType: 'easy',
   weather: '',
   notes: '',
+  shoeId: '',
 }
 
 export default function RunForm({ onSubmit, onCancel }) {
   const [form, setForm] = useState(DEFAULT_FORM)
   const [errors, setErrors] = useState({})
+  const { activeShoes } = useShoesDb()
 
   const set = (field, value) => {
     setForm(f => ({ ...f, [field]: value }))
@@ -62,6 +65,7 @@ export default function RunForm({ onSubmit, onCancel }) {
       workoutType: form.workoutType,
       weather: form.weather,
       notes: form.notes,
+      shoeId: form.shoeId || null,
     })
     setForm(DEFAULT_FORM)
     setErrors({})
@@ -174,6 +178,22 @@ export default function RunForm({ onSubmit, onCancel }) {
             ))}
           </div>
         </div>
+        {/* Shoes */}
+        {activeShoes.length > 0 && (
+          <div>
+            <label className="label">Shoes (optional)</label>
+            <select
+              className="input"
+              value={form.shoeId}
+              onChange={e => set('shoeId', e.target.value)}
+            >
+              <option value="">— No shoe selected —</option>
+              {activeShoes.map(shoe => (
+                <option key={shoe.id} value={shoe.id}>{shoe.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       {/* Notes */}

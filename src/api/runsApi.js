@@ -14,6 +14,7 @@ function dbRunToRun(row) {
     weather:      row.weather ?? '',
     notes:        row.notes ?? '',
     isPublic:     row.is_public,
+    shoeId:       row.shoe_id ?? null,
   }
 }
 
@@ -30,6 +31,7 @@ function runToDbInsert(userId, runData) {
     weather:       runData.weather || null,
     notes:         runData.notes || null,
     is_public:     runData.isPublic ?? false,
+    shoe_id:       runData.shoeId || null,
   }
 }
 

@@ -4,6 +4,8 @@ import PersonalRecords from '../features/home/PersonalRecords.jsx'
 import TrainingPhilosophy from '../features/home/TrainingPhilosophy.jsx'
 import RecentStats from '../features/home/RecentStats.jsx'
 import WeeklyMileage from '../features/home/WeeklyMileage.jsx'
+import ActiveShoes from '../features/home/ActiveShoes.jsx'
+import ShoeGraveyard from '../features/home/ShoeGraveyard.jsx'
 
 export default function Home() {
   return (
@@ -29,6 +31,7 @@ export default function Home() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="space-y-6">
               <RecentStats />
+              <ActiveShoes />
               <Bio />
             </div>
             <div className="space-y-6">
@@ -36,6 +39,9 @@ export default function Home() {
               <TrainingPhilosophy />
             </div>
           </div>
+
+          {/* Shoe graveyard — full width, only shown when shoes have been retired */}
+          <ShoeGraveyard />
         </div>
       </PageWrapper>
     </>
