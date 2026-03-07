@@ -30,6 +30,7 @@ export default function PlannedRunForm({ onSubmit, onCancel, initialValues }) {
   const [form, setForm] = useState(initialValues ? { ...DEFAULT_FORM, ...initialValues } : DEFAULT_FORM)
   const [errors, setErrors] = useState({})
   const [surpriseLoading, setSurpriseLoading] = useState(false)
+  const [customRest, setCustomRest] = useState('')
   const { getBestRaceRun } = useRunningLogDb()
 
   const set = (field, value) => {
@@ -240,14 +241,14 @@ export default function PlannedRunForm({ onSubmit, onCancel, initialValues }) {
           </div>
           <div>
             <label className="label">Rest Between Reps</label>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 items-center">
               {REST_QUICK_PICKS.map(({ label, value }) => (
                 <button
                   key={value}
                   type="button"
-                  onClick={() => set('restSeconds', value)}
+                  onClick={() => { set('restSeconds', value); setCustomRest('') }}
                   className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${
-                    form.restSeconds === value
+                    form.restSeconds === value && customRest === ''
                       ? 'bg-red-500 text-white border-red-500'
                       : 'bg-white text-gray-600 border-gray-200 hover:border-red-300'
                   }`}
@@ -255,6 +256,22 @@ export default function PlannedRunForm({ onSubmit, onCancel, initialValues }) {
                   {label}
                 </button>
               ))}
+              {/* Custom input */}
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="number"
+                  min="1"
+                  className="input w-20 text-sm py-1.5"
+                  placeholder="Custom"
+                  value={customRest}
+                  onChange={e => {
+                    const val = e.target.value
+                    setCustomRest(val)
+                    if (val && parseInt(val) > 0) set('restSeconds', parseInt(val))
+                  }}
+                />
+                <span className="text-xs text-gray-400">sec</span>
+              </div>
             </div>
             <p className="text-xs text-gray-400 mt-1">Selected: {restLabel(form.restSeconds)}</p>
           </div>
