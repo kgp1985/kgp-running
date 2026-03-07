@@ -1,7 +1,5 @@
 import PageWrapper from '../components/layout/PageWrapper.jsx'
-import Bio from '../features/home/Bio.jsx'
 import PersonalRecords from '../features/home/PersonalRecords.jsx'
-import TrainingPhilosophy from '../features/home/TrainingPhilosophy.jsx'
 import RecentStats from '../features/home/RecentStats.jsx'
 import WeeklyMileage from '../features/home/WeeklyMileage.jsx'
 import ActiveShoes from '../features/home/ActiveShoes.jsx'
@@ -32,11 +30,9 @@ export default function Home() {
             <div className="space-y-6">
               <RecentStats />
               <ActiveShoes />
-              <Bio />
             </div>
             <div className="space-y-6">
               <PersonalRecords />
-              <TrainingPhilosophy />
             </div>
           </div>
 

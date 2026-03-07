@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react'
 import PageWrapper from '../components/layout/PageWrapper.jsx'
 import RunTable from '../features/log/RunTable.jsx'
 import LogFilters from '../features/log/LogFilters.jsx'
+import Bio from '../features/home/Bio.jsx'
+import TrainingPhilosophy from '../features/home/TrainingPhilosophy.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import { fetchAllRunsForOwner, fetchPublicRunsForUser, deleteRun } from '../api/runsApi.js'
 
@@ -73,6 +75,12 @@ export default function CoachLog() {
 
   return (
     <PageWrapper>
+      {/* About + Philosophy — visible to everyone */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <Bio />
+        <TrainingPhilosophy />
+      </div>
+
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Kyle's Running Log</h1>
