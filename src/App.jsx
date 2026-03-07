@@ -4,6 +4,7 @@ import Navbar from './components/layout/Navbar.jsx'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
 import Home from './pages/Home.jsx'
 import RunningLog from './pages/RunningLog.jsx'
+import TrainingPlan from './pages/TrainingPlan.jsx'
 import RaceCalculator from './pages/RaceCalculator.jsx'
 import WorkoutTypes from './pages/WorkoutTypes.jsx'
 import Login from './pages/Login.jsx'
@@ -26,6 +27,14 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <RunningLog />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path={ROUTES.PLAN}
+              element={
+                <ProtectedRoute>
+                  <TrainingPlan />
                 </ProtectedRoute>
               }
             />

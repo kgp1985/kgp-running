@@ -4,6 +4,7 @@ import RecentStats from '../features/home/RecentStats.jsx'
 import WeeklyMileage from '../features/home/WeeklyMileage.jsx'
 import ActiveShoes from '../features/home/ActiveShoes.jsx'
 import ShoeGraveyard from '../features/home/ShoeGraveyard.jsx'
+import UpcomingTraining from '../features/home/UpcomingTraining.jsx'
 
 export default function Home() {
   return (
@@ -32,6 +33,7 @@ export default function Home() {
               <ActiveShoes />
             </div>
             <div className="space-y-6">
+              <UpcomingTraining />
               <PersonalRecords />
             </div>
           </div>
