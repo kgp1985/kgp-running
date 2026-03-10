@@ -3,7 +3,7 @@ import { WORKOUT_TYPES, WORKOUT_TYPE_COLORS } from '../../data/workoutTypes.js'
 import { secondsToTimeStr } from '../../utils/paceCalc.js'
 import { formatDate, formatHR } from '../../utils/formatters.js'
 
-export default function RunRow({ run, onDelete }) {
+export default function RunRow({ run, onDelete, onEdit }) {
   const [expanded, setExpanded] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
@@ -40,34 +40,47 @@ export default function RunRow({ run, onDelete }) {
         </td>
         <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">{formatHR(run.heartRate)}</td>
         <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
-          {typeof onDelete === 'function' && (
-            confirmDelete ? (
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={handleDelete}
-                  className="text-xs text-red-600 font-semibold hover:text-red-800"
-                >
-                  Confirm
-                </button>
-                <button
-                  onClick={() => setConfirmDelete(false)}
-                  className="text-xs text-gray-400 hover:text-gray-600 ml-1"
-                >
-                  Cancel
-                </button>
-              </div>
-            ) : (
+          <div className="flex items-center gap-2">
+            {typeof onEdit === 'function' && (
               <button
-                onClick={handleDelete}
-                className="text-gray-300 hover:text-red-400 transition-colors"
-                title="Delete run"
+                onClick={() => onEdit(run)}
+                className="text-gray-300 hover:text-blue-400 transition-colors"
+                title="Edit run"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                 </svg>
               </button>
-            )
-          )}
+            )}
+            {typeof onDelete === 'function' && (
+              confirmDelete ? (
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={handleDelete}
+                    className="text-xs text-red-600 font-semibold hover:text-red-800"
+                  >
+                    Confirm
+                  </button>
+                  <button
+                    onClick={() => setConfirmDelete(false)}
+                    className="text-xs text-gray-400 hover:text-gray-600 ml-1"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={handleDelete}
+                  className="text-gray-300 hover:text-red-400 transition-colors"
+                  title="Delete run"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              )
+            )}
+          </div>
         </td>
       </tr>
 

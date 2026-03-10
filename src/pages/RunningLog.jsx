@@ -5,19 +5,46 @@ import RunTable from '../features/log/RunTable.jsx'
 import LogFilters from '../features/log/LogFilters.jsx'
 import { useRunningLogDb } from '../hooks/useRunningLogDb.js'
 import { usePersonalRecordsDb } from '../hooks/usePersonalRecordsDb.js'
+import { secondsToTimeStr } from '../utils/paceCalc.js'
 
 const DEFAULT_FILTERS = { workoutType: '', dateFrom: '', dateTo: '', sortBy: 'date-desc' }
 
+function runToFormValues(run) {
+  return {
+    date: run.date,
+    distance: run.distanceUnit === 'km'
+      ? (run.distance * 1.60934).toFixed(2)
+      : run.distance.toFixed(2),
+    distanceUnit: run.distanceUnit ?? 'mi',
+    durationStr: secondsToTimeStr(run.duration, run.duration >= 3600),
+    heartRate: run.heartRate ?? '',
+    workoutType: run.workoutType,
+    weather: run.weather ?? '',
+    notes: run.notes ?? '',
+    shoeId: run.shoeId ?? '',
+    hasReps: !!run.repsCount,
+    repsCount: run.repsCount ?? '',
+    repDistanceMeters: run.repDistanceMeters ?? '',
+    restSeconds: run.restSeconds ?? 90,
+  }
+}
+
 export default function RunningLog() {
   const [showForm, setShowForm] = useState(false)
+  const [editingRun, setEditingRun] = useState(null)
   const [filters, setFilters] = useState(DEFAULT_FILTERS)
-  const { runs, addRun, deleteRun, loading } = useRunningLogDb()
+  const { runs, addRun, deleteRun, updateRun, loading } = useRunningLogDb()
   const { checkAndUpdatePR } = usePersonalRecordsDb()
 
   const handleAddRun = async (runData) => {
     const newRun = await addRun(runData)
     if (newRun) await checkAndUpdatePR({ ...runData, id: newRun.id })
     setShowForm(false)
+  }
+
+  const handleUpdateRun = async (runData) => {
+    await updateRun(editingRun.id, runData)
+    setEditingRun(null)
   }
 
   // Apply filters
@@ -86,8 +113,22 @@ export default function RunningLog() {
 
       {/* Table */}
       <div className="card">
-        <RunTable runs={filtered} onDelete={deleteRun} />
+        <RunTable runs={filtered} onDelete={deleteRun} onEdit={run => setEditingRun(run)} />
       </div>
+
+      {/* Edit modal */}
+      {editingRun && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl mt-8 mb-8 p-6">
+            <h2 className="text-base font-semibold text-gray-900 mb-4">Edit Run</h2>
+            <RunForm
+              initialValues={runToFormValues(editingRun)}
+              onSubmit={handleUpdateRun}
+              onCancel={() => setEditingRun(null)}
+            />
+          </div>
+        </div>
+      )}
     </PageWrapper>
   )
 }

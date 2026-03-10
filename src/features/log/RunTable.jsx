@@ -10,7 +10,7 @@ const HEADERS = [
   { label: '', key: 'actions' },
 ]
 
-export default function RunTable({ runs, onDelete }) {
+export default function RunTable({ runs, onDelete, onEdit }) {
   if (runs.length === 0) {
     return (
       <div className="text-center py-16 text-gray-400">
@@ -35,7 +35,7 @@ export default function RunTable({ runs, onDelete }) {
         </thead>
         <tbody className="divide-y divide-gray-50">
           {runs.map(run => (
-            <RunRow key={run.id} run={run} onDelete={onDelete} />
+            <RunRow key={run.id} run={run} onDelete={onDelete} onEdit={onEdit} />
           ))}
         </tbody>
       </table>
