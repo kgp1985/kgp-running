@@ -3,35 +3,41 @@ import { supabase } from '../lib/supabaseClient.js'
 // Convert DB snake_case row → camelCase UI object
 function dbRunToRun(row) {
   return {
-    id:           row.id,
-    createdAt:    row.created_at,
-    date:         row.date,           // 'YYYY-MM-DD'
-    distance:     Number(row.distance),
-    distanceUnit: row.distance_unit,
-    duration:     row.duration,       // seconds
-    heartRate:    row.heart_rate,
-    workoutType:  row.workout_type,
-    weather:      row.weather ?? '',
-    notes:        row.notes ?? '',
-    isPublic:     row.is_public,
-    shoeId:       row.shoe_id ?? null,
+    id:                 row.id,
+    createdAt:          row.created_at,
+    date:               row.date,           // 'YYYY-MM-DD'
+    distance:           Number(row.distance),
+    distanceUnit:       row.distance_unit,
+    duration:           row.duration,       // seconds
+    heartRate:          row.heart_rate,
+    workoutType:        row.workout_type,
+    weather:            row.weather ?? '',
+    notes:              row.notes ?? '',
+    isPublic:           row.is_public,
+    shoeId:             row.shoe_id ?? null,
+    repsCount:          row.reps_count ?? null,
+    repDistanceMeters:  row.rep_distance_meters ?? null,
+    restSeconds:        row.rest_seconds ?? null,
   }
 }
 
 // Convert camelCase UI object → DB snake_case insert shape
 function runToDbInsert(userId, runData) {
   return {
-    user_id:       userId,
-    date:          runData.date,
-    distance:      runData.distance,
-    distance_unit: runData.distanceUnit ?? 'mi',
-    duration:      runData.duration,
-    heart_rate:    runData.heartRate ?? null,
-    workout_type:  runData.workoutType ?? 'easy',
-    weather:       runData.weather || null,
-    notes:         runData.notes || null,
-    is_public:     runData.isPublic ?? false,
-    shoe_id:       runData.shoeId || null,
+    user_id:              userId,
+    date:                 runData.date,
+    distance:             runData.distance,
+    distance_unit:        runData.distanceUnit ?? 'mi',
+    duration:             runData.duration,
+    heart_rate:           runData.heartRate ?? null,
+    workout_type:         runData.workoutType ?? 'easy',
+    weather:              runData.weather || null,
+    notes:                runData.notes || null,
+    is_public:            runData.isPublic ?? false,
+    shoe_id:              runData.shoeId || null,
+    reps_count:           runData.repsCount ?? null,
+    rep_distance_meters:  runData.repDistanceMeters ?? null,
+    rest_seconds:         runData.restSeconds ?? null,
   }
 }
 

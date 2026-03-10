@@ -5,6 +5,13 @@ import { useShoesDb } from '../../hooks/useShoesDb.js'
 
 const WEATHER_OPTIONS = ['Sunny', 'Cloudy', 'Rainy', 'Windy', 'Hot', 'Cold', 'Humid', 'Snow', 'Perfect']
 
+const REST_QUICK_PICKS = [
+  { label: '60s',  value: 60 },
+  { label: '90s',  value: 90 },
+  { label: '2min', value: 120 },
+  { label: '3min', value: 180 },
+]
+
 const DEFAULT_FORM = {
   date: new Date().toISOString().slice(0, 10),
   distance: '',
@@ -15,11 +22,16 @@ const DEFAULT_FORM = {
   weather: '',
   notes: '',
   shoeId: '',
+  hasReps: false,
+  repsCount: '',
+  repDistanceMeters: '',
+  restSeconds: 90,
 }
 
 export default function RunForm({ onSubmit, onCancel, initialValues }) {
   const [form, setForm] = useState(initialValues ? { ...DEFAULT_FORM, ...initialValues } : DEFAULT_FORM)
   const [errors, setErrors] = useState({})
+  const [customRest, setCustomRest] = useState('')
   const { activeShoes } = useShoesDb()
 
   const set = (field, value) => {
@@ -40,6 +52,10 @@ export default function RunForm({ onSubmit, onCancel, initialValues }) {
     }
     if (form.heartRate && (isNaN(parseInt(form.heartRate)) || parseInt(form.heartRate) <= 0)) {
       errs.heartRate = 'Enter a valid HR'
+    }
+    if (form.hasReps) {
+      if (!form.repsCount || parseInt(form.repsCount) <= 0) errs.repsCount = 'Enter number of reps'
+      if (!form.repDistanceMeters || parseInt(form.repDistanceMeters) <= 0) errs.repDistanceMeters = 'Enter rep distance'
     }
     return errs
   }
@@ -66,6 +82,9 @@ export default function RunForm({ onSubmit, onCancel, initialValues }) {
       weather: form.weather,
       notes: form.notes,
       shoeId: form.shoeId || null,
+      repsCount: form.hasReps ? parseInt(form.repsCount) : null,
+      repDistanceMeters: form.hasReps ? parseInt(form.repDistanceMeters) : null,
+      restSeconds: form.hasReps ? form.restSeconds : null,
     })
     setForm(DEFAULT_FORM)
     setErrors({})
@@ -195,6 +214,87 @@ export default function RunForm({ onSubmit, onCancel, initialValues }) {
           </div>
         )}
       </div>
+
+      {/* Reps toggle */}
+      <div>
+        <label className="flex items-center gap-2 cursor-pointer w-fit">
+          <input
+            type="checkbox"
+            className="w-4 h-4 rounded accent-red-500"
+            checked={form.hasReps}
+            onChange={e => set('hasReps', e.target.checked)}
+          />
+          <span className="text-sm font-medium text-gray-700">This workout has intervals / reps</span>
+        </label>
+      </div>
+
+      {/* Reps details */}
+      {form.hasReps && (
+        <div className="bg-gray-50 rounded-xl p-4 space-y-3">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Interval Details</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">Number of Reps</label>
+              <input
+                type="number"
+                min="1"
+                className={`input ${errors.repsCount ? 'border-red-400 focus:ring-red-400' : ''}`}
+                placeholder="6"
+                value={form.repsCount}
+                onChange={e => set('repsCount', e.target.value)}
+              />
+              {errors.repsCount && <p className="text-xs text-red-500 mt-1">{errors.repsCount}</p>}
+            </div>
+            <div>
+              <label className="label">Rep Distance (meters)</label>
+              <input
+                type="number"
+                min="1"
+                className={`input ${errors.repDistanceMeters ? 'border-red-400 focus:ring-red-400' : ''}`}
+                placeholder="800"
+                value={form.repDistanceMeters}
+                onChange={e => set('repDistanceMeters', e.target.value)}
+              />
+              {errors.repDistanceMeters && <p className="text-xs text-red-500 mt-1">{errors.repDistanceMeters}</p>}
+            </div>
+          </div>
+          <div>
+            <label className="label">Rest Between Reps</label>
+            <div className="flex flex-wrap gap-2 items-center">
+              {REST_QUICK_PICKS.map(({ label, value }) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => { set('restSeconds', value); setCustomRest('') }}
+                  className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${
+                    form.restSeconds === value && customRest === ''
+                      ? 'bg-red-500 text-white border-red-500'
+                      : 'bg-white text-gray-600 border-gray-200 hover:border-red-300'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="number"
+                  min="1"
+                  className="input w-20 text-sm py-1.5"
+                  placeholder="Custom"
+                  value={customRest}
+                  onChange={e => {
+                    const val = e.target.value
+                    setCustomRest(val)
+                    if (val && parseInt(val) > 0) set('restSeconds', parseInt(val))
+                  }}
+                />
+                <span className="text-xs text-gray-400">sec</span>
+              </div>
+            </div>
+            <p className="text-xs text-gray-400 mt-1">Selected: {form.restSeconds < 60 ? `${form.restSeconds}s` : form.restSeconds % 60 === 0 ? `${form.restSeconds / 60}min` : `${form.restSeconds}s`}</p>
+          </div>
+        </div>
+      )}
 
       {/* Notes */}
       <div>
