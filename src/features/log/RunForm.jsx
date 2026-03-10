@@ -17,8 +17,8 @@ const DEFAULT_FORM = {
   shoeId: '',
 }
 
-export default function RunForm({ onSubmit, onCancel }) {
-  const [form, setForm] = useState(DEFAULT_FORM)
+export default function RunForm({ onSubmit, onCancel, initialValues }) {
+  const [form, setForm] = useState(initialValues ? { ...DEFAULT_FORM, ...initialValues } : DEFAULT_FORM)
   const [errors, setErrors] = useState({})
   const { activeShoes } = useShoesDb()
 
