@@ -133,6 +133,51 @@ export function calculateCurrentVDOT(prs, runs = []) {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Progressive VDOT blending — for "bridge" training between current and goal fitness
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * How much of the current→goal gap each zone incorporates in Progressive mode.
+ *
+ * Rationale (Daniels / Pfitzinger coaching science):
+ *   Easy / Recovery / Long  → 0%   pure current fitness; faster aerobic runs add fatigue, not fitness
+ *   Lactate Threshold       → 25%  LT is highly trainable; a gentle push is appropriate and safe
+ *   VO₂max Intervals        → 50%  short reps with full recovery — this is how the gap gets closed
+ *   Speed / Repetitions     → 75%  brief enough to hit near-goal pace without injury risk
+ *   Tune-up / Key Race      → 40%  race-day realistic; between LT and VO₂max effort
+ */
+const PROGRESSIVE_BLEND = {
+  easy:       0.00,
+  recovery:   0.00,
+  long:       0.00,
+  tempo:      0.25,
+  interval:   0.50,
+  repetition: 0.75,
+  tuneup:     0.40,
+  keyrace:    0.50,
+}
+
+/**
+ * Return the effective VDOT for a given workout type and training mode.
+ *
+ * @param {number} currentVdot   - VDOT calculated from actual race performances
+ * @param {number|null} goalVdot - User's goal VDOT (from Race Calculator), or null
+ * @param {string} workoutType   - One of the WORKOUT_TYPES keys
+ * @param {'current'|'progressive'|'goal'} mode
+ * @returns {number} effective VDOT to use for pace generation
+ */
+export function effectiveVdot(currentVdot, goalVdot, workoutType, mode) {
+  if (!currentVdot) return null
+  if (!goalVdot || mode === 'current') return currentVdot
+  if (mode === 'goal') return goalVdot
+
+  // Progressive: blend per zone
+  const factor = PROGRESSIVE_BLEND[workoutType] ?? 0
+  const blended = currentVdot + factor * (goalVdot - currentVdot)
+  return Math.round(blended * 10) / 10
+}
+
 // Jack Daniels VO2max formula components
 // t = time in minutes, v = velocity in meters/minute
 
