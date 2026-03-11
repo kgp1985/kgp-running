@@ -103,15 +103,19 @@ export async function deleteRun(runId) {
 
 export async function updateRun(runId, updates) {
   const dbUpdates = {}
-  if (updates.date         !== undefined) dbUpdates.date          = updates.date
-  if (updates.distance     !== undefined) dbUpdates.distance      = updates.distance
-  if (updates.distanceUnit !== undefined) dbUpdates.distance_unit = updates.distanceUnit
-  if (updates.duration     !== undefined) dbUpdates.duration      = updates.duration
-  if (updates.heartRate    !== undefined) dbUpdates.heart_rate    = updates.heartRate
-  if (updates.workoutType  !== undefined) dbUpdates.workout_type  = updates.workoutType
-  if (updates.weather      !== undefined) dbUpdates.weather       = updates.weather
-  if (updates.notes        !== undefined) dbUpdates.notes         = updates.notes
-  if (updates.isPublic     !== undefined) dbUpdates.is_public     = updates.isPublic
+  if (updates.date               !== undefined) dbUpdates.date                 = updates.date
+  if (updates.distance           !== undefined) dbUpdates.distance             = updates.distance
+  if (updates.distanceUnit       !== undefined) dbUpdates.distance_unit        = updates.distanceUnit
+  if (updates.duration           !== undefined) dbUpdates.duration             = updates.duration
+  if (updates.heartRate          !== undefined) dbUpdates.heart_rate           = updates.heartRate
+  if (updates.workoutType        !== undefined) dbUpdates.workout_type         = updates.workoutType
+  if (updates.weather            !== undefined) dbUpdates.weather              = updates.weather
+  if (updates.notes              !== undefined) dbUpdates.notes                = updates.notes
+  if (updates.isPublic           !== undefined) dbUpdates.is_public            = updates.isPublic
+  if (updates.shoeId             !== undefined) dbUpdates.shoe_id              = updates.shoeId
+  if (updates.repsCount          !== undefined) dbUpdates.reps_count           = updates.repsCount
+  if (updates.repDistanceMeters  !== undefined) dbUpdates.rep_distance_meters  = updates.repDistanceMeters
+  if (updates.restSeconds        !== undefined) dbUpdates.rest_seconds         = updates.restSeconds
 
   const { data, error } = await supabase
     .from('runs')
