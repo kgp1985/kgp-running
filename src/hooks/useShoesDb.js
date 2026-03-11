@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../context/AuthContext.jsx'
-import { fetchShoes, insertShoe, retireShoe, deleteShoe } from '../api/shoesApi.js'
+import { fetchShoes, insertShoe, updateShoe, retireShoe, deleteShoe } from '../api/shoesApi.js'
 
 export function useShoesDb() {
   const { user } = useAuth()
@@ -24,6 +24,13 @@ export function useShoesDb() {
     return shoe
   }, [user])
 
+  const updateShoeById = useCallback(async (shoeId, fields) => {
+    if (!user) return
+    const updated = await updateShoe(shoeId, fields)
+    setShoes(prev => prev.map(s => s.id === shoeId ? updated : s))
+    return updated
+  }, [user])
+
   const retireShoeById = useCallback(async (shoeId) => {
     if (!user) return
     const today = new Date().toISOString().slice(0, 10)
@@ -40,5 +47,5 @@ export function useShoesDb() {
   const activeShoes = shoes.filter(s => !s.retired)
   const retiredShoes = shoes.filter(s => s.retired)
 
-  return { shoes, activeShoes, retiredShoes, loading, addShoe, retireShoeById, removeShoe }
+  return { shoes, activeShoes, retiredShoes, loading, addShoe, updateShoeById, retireShoeById, removeShoe }
 }

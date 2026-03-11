@@ -2,12 +2,13 @@ import { supabase } from '../lib/supabaseClient.js'
 
 function dbShoeToShoe(row) {
   return {
-    id:          row.id,
-    name:        row.name,
-    addedDate:   row.added_date,
-    retired:     row.retired,
-    retiredDate: row.retired_date ?? null,
-    createdAt:   row.created_at,
+    id:            row.id,
+    name:          row.name,
+    addedDate:     row.added_date,
+    retired:       row.retired,
+    retiredDate:   row.retired_date ?? null,
+    createdAt:     row.created_at,
+    mileageOffset: Number(row.mileage_offset ?? 0),
   }
 }
 
@@ -26,6 +27,23 @@ export async function insertShoe(userId, name, addedDate) {
   const { data, error } = await supabase
     .from('shoes')
     .insert({ user_id: userId, name, added_date: addedDate })
+    .select()
+    .single()
+
+  if (error) throw error
+  return dbShoeToShoe(data)
+}
+
+export async function updateShoe(shoeId, { name, addedDate, mileageOffset }) {
+  const updates = {}
+  if (name          !== undefined) updates.name           = name
+  if (addedDate     !== undefined) updates.added_date     = addedDate
+  if (mileageOffset !== undefined) updates.mileage_offset = mileageOffset
+
+  const { data, error } = await supabase
+    .from('shoes')
+    .update(updates)
+    .eq('id', shoeId)
     .select()
     .single()
 

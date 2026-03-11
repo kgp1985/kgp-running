@@ -41,7 +41,7 @@ export default function ShoeGraveyard() {
   const { retiredShoes, loading } = useShoesDb()
   const { runs } = useRunningLogDb()
 
-  const milesByShoe = runs.reduce((acc, r) => {
+  const runMilesByShoe = runs.reduce((acc, r) => {
     if (r.shoeId) acc[r.shoeId] = (acc[r.shoeId] || 0) + r.distance
     return acc
   }, {})
@@ -61,7 +61,7 @@ export default function ShoeGraveyard() {
             <Tombstone
               key={shoe.id}
               shoe={shoe}
-              miles={milesByShoe[shoe.id] || 0}
+              miles={(runMilesByShoe[shoe.id] || 0) + (shoe.mileageOffset || 0)}
             />
           ))}
         </div>
