@@ -5,6 +5,9 @@ import WeeklyMileage from '../features/home/WeeklyMileage.jsx'
 import ActiveShoes from '../features/home/ActiveShoes.jsx'
 import ShoeGraveyard from '../features/home/ShoeGraveyard.jsx'
 import UpcomingTraining from '../features/home/UpcomingTraining.jsx'
+import PeriodStats from '../features/home/PeriodStats.jsx'
+import ThisWeek from '../features/home/ThisWeek.jsx'
+import RaceCountdown from '../features/home/RaceCountdown.jsx'
 
 export default function Home() {
   return (
@@ -23,16 +26,23 @@ export default function Home() {
 
       <PageWrapper>
         <div className="space-y-6">
-          {/* Weekly mileage — full width */}
+          {/* Weekly mileage — full width, includes 8/18-week toggle */}
           <WeeklyMileage />
+
+          {/* Race countdown — full width, only rendered for logged-in users */}
+          <RaceCountdown />
 
           {/* Two-column grid */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Left column */}
             <div className="space-y-6">
+              <PeriodStats />
               <RecentStats />
               <ActiveShoes />
             </div>
+            {/* Right column */}
             <div className="space-y-6">
+              <ThisWeek />
               <UpcomingTraining />
               <PersonalRecords />
             </div>

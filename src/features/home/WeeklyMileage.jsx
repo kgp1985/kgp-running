@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useRunningLogDb } from '../../hooks/useRunningLogDb.js'
 
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -88,8 +89,10 @@ const CHART_HEIGHT = 120 // px
 
 export default function WeeklyMileage() {
   const { runs } = useRunningLogDb()
+  const [chartView, setChartView] = useState('8') // '8' | '18'
 
-  const weeks = buildWeekBuckets(runs, 8, 8)
+  const displayCount = chartView === '18' ? 18 : 8
+  const weeks = buildWeekBuckets(runs, displayCount, 8)
   const currentWeek = weeks[weeks.length - 1]
 
   // Today's day-of-week index for the current week strip
@@ -162,13 +165,33 @@ export default function WeeklyMileage() {
         </div>
       </div>
 
-      {/* ── 8-week bar chart ── */}
+      {/* ── Bar chart (8 or 18 weeks) ── */}
       <div>
         <div className="flex items-center justify-between mb-1">
-          <p className="text-sm font-medium text-gray-600">Past 8 Weeks</p>
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-medium text-gray-600">
+              Past {chartView === '18' ? '18' : '8'} Weeks
+            </p>
+            {/* Toggle */}
+            <div className="flex rounded-lg border border-gray-200 overflow-hidden">
+              {['8', '18'].map(v => (
+                <button
+                  key={v}
+                  onClick={() => setChartView(v)}
+                  className={`px-2.5 py-0.5 text-xs font-medium transition-colors ${
+                    chartView === v
+                      ? 'bg-gray-900 text-white'
+                      : 'bg-white text-gray-500 hover:bg-gray-50'
+                  }`}
+                >
+                  {v}w
+                </button>
+              ))}
+            </div>
+          </div>
           {currentAvg > 0 && (
             <p className="text-xs text-gray-400">
-              8-wk avg <span className="font-semibold text-gray-600">{currentAvg.toFixed(1)} mi/wk</span>
+              {chartView === '18' ? '18' : '8'}-wk avg <span className="font-semibold text-gray-600">{currentAvg.toFixed(1)} mi/wk</span>
             </p>
           )}
         </div>
@@ -277,15 +300,20 @@ export default function WeeklyMileage() {
               })}
             </div>
 
-            {/* X-axis labels */}
+            {/* X-axis labels — show every 3rd label in 18-week view to avoid crowding */}
             <div className="flex gap-1.5 mt-1">
-              {weeks.map((w, i) => (
-                <div key={i} className="flex-1 text-center">
-                  <span className={`text-xs ${w.isCurrent ? 'font-bold text-red-600' : 'text-gray-400'}`}>
-                    {w.isCurrent ? 'Now' : weekLabel(w.monday)}
-                  </span>
-                </div>
-              ))}
+              {weeks.map((w, i) => {
+                const showLabel = chartView === '8' || w.isCurrent || i % 3 === 0
+                return (
+                  <div key={i} className="flex-1 text-center overflow-hidden">
+                    {showLabel && (
+                      <span className={`text-xs ${w.isCurrent ? 'font-bold text-red-600' : 'text-gray-400'}`}>
+                        {w.isCurrent ? 'Now' : weekLabel(w.monday)}
+                      </span>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           </div>
         </div>
