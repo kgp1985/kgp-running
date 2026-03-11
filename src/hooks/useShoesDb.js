@@ -17,9 +17,9 @@ export function useShoesDb() {
     return () => { cancelled = true }
   }, [user])
 
-  const addShoe = useCallback(async (name, addedDate) => {
+  const addShoe = useCallback(async (name, addedDate, isSuperShoe = false) => {
     if (!user) return null
-    const shoe = await insertShoe(user.id, name, addedDate)
+    const shoe = await insertShoe(user.id, name, addedDate, isSuperShoe)
     setShoes(prev => [shoe, ...prev])
     return shoe
   }, [user])

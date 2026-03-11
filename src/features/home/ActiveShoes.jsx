@@ -3,22 +3,31 @@ import { useShoesDb } from '../../hooks/useShoesDb.js'
 import { useRunningLogDb } from '../../hooks/useRunningLogDb.js'
 import { useAuth } from '../../context/AuthContext.jsx'
 
-const WARN_MILES = 400
-const MAX_MILES = 500
+// Regular shoe limits
+const WARN_MILES_STD  = 400
+const MAX_MILES_STD   = 500
 
-function MileageBar({ miles }) {
-  const pct = Math.min((miles / MAX_MILES) * 100, 100)
-  const color = miles >= MAX_MILES
-    ? 'bg-red-500'
-    : miles >= WARN_MILES
-    ? 'bg-yellow-400'
-    : 'bg-green-500'
+// Super shoe limits (carbon plate race shoes)
+const WARN_MILES_SUPER = 200
+const MAX_MILES_SUPER  = 250
+
+function MileageBar({ miles, isSuperShoe }) {
+  const maxMiles  = isSuperShoe ? MAX_MILES_SUPER  : MAX_MILES_STD
+  const warnMiles = isSuperShoe ? WARN_MILES_SUPER : WARN_MILES_STD
+
+  const pct = Math.min((miles / maxMiles) * 100, 100)
+
+  const color = miles >= maxMiles
+    ? (isSuperShoe ? 'bg-amber-500' : 'bg-red-500')
+    : miles >= warnMiles
+    ? (isSuperShoe ? 'bg-yellow-400' : 'bg-yellow-400')
+    : (isSuperShoe ? 'bg-violet-500' : 'bg-green-500')
 
   return (
     <div className="mt-2">
       <div className="flex justify-between text-xs text-gray-400 mb-1">
         <span>{miles.toFixed(0)} mi</span>
-        <span>{MAX_MILES} mi max</span>
+        <span>{maxMiles} mi max</span>
       </div>
       <div className="w-full bg-gray-100 rounded-full h-2">
         <div
@@ -26,17 +35,63 @@ function MileageBar({ miles }) {
           style={{ width: `${pct}%` }}
         />
       </div>
-      {miles >= MAX_MILES && (
+
+      {isSuperShoe && miles < warnMiles && (
+        <p className="text-xs text-violet-500 mt-1 font-medium">
+          ⚡ Peak performance zone · {(150 - miles).toFixed(0) > 0 ? `${(150 - miles).toFixed(0)} mi until performance fades` : 'Use for racing or key workouts'}
+        </p>
+      )}
+      {isSuperShoe && miles >= warnMiles && miles < maxMiles && (
+        <p className="text-xs text-amber-600 mt-1 font-medium">
+          ⚡ Carbon plate fatigue — consider retiring from races ({(maxMiles - miles).toFixed(0)} mi left)
+        </p>
+      )}
+      {isSuperShoe && miles >= maxMiles && (
+        <p className="text-xs text-amber-500 mt-1 font-medium">⚠️ Race performance compromised — move to training only</p>
+      )}
+
+      {!isSuperShoe && miles >= maxMiles && (
         <p className="text-xs text-red-500 mt-1 font-medium">⚠️ Consider retiring these shoes</p>
       )}
-      {miles >= WARN_MILES && miles < MAX_MILES && (
-        <p className="text-xs text-yellow-600 mt-1 font-medium">⚠️ Getting close — {(MAX_MILES - miles).toFixed(0)} mi left</p>
+      {!isSuperShoe && miles >= warnMiles && miles < maxMiles && (
+        <p className="text-xs text-yellow-600 mt-1 font-medium">⚠️ Getting close — {(maxMiles - miles).toFixed(0)} mi left</p>
       )}
     </div>
   )
 }
 
-const EMPTY_EDIT = { name: '', addedDate: '', mileageOffset: '' }
+// ── Super Shoe toggle button ─────────────────────────────────────────────────
+function SuperShoeToggle({ value, onChange }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(!value)}
+      className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 transition-all duration-200 text-sm font-medium ${
+        value
+          ? 'border-violet-400 bg-violet-50 text-violet-700'
+          : 'border-gray-200 bg-white text-gray-500 hover:border-violet-300'
+      }`}
+    >
+      <span className="text-base">⚡</span>
+      <span className="flex-1 text-left">
+        {value ? 'Super Shoe — ON' : 'Super Shoe'}
+      </span>
+      <div
+        className={`w-9 h-5 rounded-full relative transition-colors duration-200 ${
+          value ? 'bg-violet-500' : 'bg-gray-200'
+        }`}
+      >
+        <div
+          className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-200 ${
+            value ? 'translate-x-4' : 'translate-x-0.5'
+          }`}
+        />
+      </div>
+    </button>
+  )
+}
+
+const EMPTY_EDIT = { name: '', addedDate: '', mileageOffset: '', isSuperShoe: false }
 
 export default function ActiveShoes() {
   const { user } = useAuth()
@@ -44,15 +99,16 @@ export default function ActiveShoes() {
   const { runs } = useRunningLogDb()
 
   // Add shoe form
-  const [showForm, setShowForm] = useState(false)
-  const [newName, setNewName] = useState('')
-  const [newDate, setNewDate] = useState(new Date().toISOString().slice(0, 10))
+  const [showForm, setShowForm]       = useState(false)
+  const [newName, setNewName]         = useState('')
+  const [newDate, setNewDate]         = useState(new Date().toISOString().slice(0, 10))
+  const [newSuperShoe, setNewSuperShoe] = useState(false)
 
   // Edit modal
-  const [editModal, setEditModal] = useState(null) // null | { shoeId, runMiles }
-  const [editForm, setEditForm] = useState(EMPTY_EDIT)
+  const [editModal, setEditModal]   = useState(null)
+  const [editForm, setEditForm]     = useState(EMPTY_EDIT)
   const [editErrors, setEditErrors] = useState({})
-  const [saving, setSaving] = useState(false)
+  const [saving, setSaving]         = useState(false)
 
   // Inline confirmations
   const [confirmRetire, setConfirmRetire] = useState(null)
@@ -64,30 +120,29 @@ export default function ActiveShoes() {
     return acc
   }, {})
 
-  // ── Add shoe ────────────────────────────────────────────
+  // ── Add shoe ────────────────────────────────────────────────────────────────
   const handleAdd = async () => {
     if (!newName.trim()) return
-    await addShoe(newName.trim(), newDate)
+    await addShoe(newName.trim(), newDate, newSuperShoe)
     setNewName('')
     setNewDate(new Date().toISOString().slice(0, 10))
+    setNewSuperShoe(false)
     setShowForm(false)
   }
 
-  // ── Edit shoe ───────────────────────────────────────────
+  // ── Edit shoe ───────────────────────────────────────────────────────────────
   const openEdit = (shoe, runMiles) => {
     setEditForm({
-      name: shoe.name,
-      addedDate: shoe.addedDate,
+      name:         shoe.name,
+      addedDate:    shoe.addedDate,
       mileageOffset: shoe.mileageOffset > 0 ? String(shoe.mileageOffset) : '',
+      isSuperShoe:  shoe.isSuperShoe,
     })
     setEditErrors({})
     setEditModal({ shoeId: shoe.id, runMiles })
   }
 
-  const closeEdit = () => {
-    setEditModal(null)
-    setEditErrors({})
-  }
+  const closeEdit = () => { setEditModal(null); setEditErrors({}) }
 
   const setEdit = (field, value) => {
     setEditForm(f => ({ ...f, [field]: value }))
@@ -97,7 +152,7 @@ export default function ActiveShoes() {
   const handleEditSave = async () => {
     const errs = {}
     if (!editForm.name.trim()) errs.name = 'Required'
-    if (!editForm.addedDate) errs.addedDate = 'Required'
+    if (!editForm.addedDate)   errs.addedDate = 'Required'
     const offset = editForm.mileageOffset === '' ? 0 : parseFloat(editForm.mileageOffset)
     if (isNaN(offset) || offset < 0) errs.mileageOffset = 'Enter a valid number (0 or more)'
     if (Object.keys(errs).length > 0) { setEditErrors(errs); return }
@@ -105,9 +160,10 @@ export default function ActiveShoes() {
     setSaving(true)
     try {
       await updateShoeById(editModal.shoeId, {
-        name: editForm.name.trim(),
-        addedDate: editForm.addedDate,
+        name:          editForm.name.trim(),
+        addedDate:     editForm.addedDate,
         mileageOffset: offset,
+        isSuperShoe:   editForm.isSuperShoe,
       })
       closeEdit()
     } catch {
@@ -117,7 +173,7 @@ export default function ActiveShoes() {
     }
   }
 
-  // ── Retire / Delete ─────────────────────────────────────
+  // ── Retire / Delete ─────────────────────────────────────────────────────────
   const handleRetire = async (shoeId) => {
     await retireShoeById(shoeId)
     setConfirmRetire(null)
@@ -162,6 +218,12 @@ export default function ActiveShoes() {
               onChange={e => setNewDate(e.target.value)}
             />
           </div>
+          <SuperShoeToggle value={newSuperShoe} onChange={setNewSuperShoe} />
+          {newSuperShoe && (
+            <p className="text-xs text-violet-600 bg-violet-50 rounded-lg px-3 py-2 leading-relaxed">
+              ⚡ Carbon plate shoes perform best between <strong>0–150 miles</strong>. After 150 mi the plate stiffness and foam resilience begin to fade — reserve for races and key workouts. Max tracked: 250 mi.
+            </p>
+          )}
           <button onClick={handleAdd} className="btn-primary w-full">
             Save Shoe
           </button>
@@ -176,15 +238,26 @@ export default function ActiveShoes() {
           <p className="text-sm">No active shoes. Add your first pair!</p>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {activeShoes.map(shoe => {
-            const runMiles = milesByShoe[shoe.id] || 0
+            const runMiles   = milesByShoe[shoe.id] || 0
             const totalMiles = runMiles + shoe.mileageOffset
+
             return (
-              <div key={shoe.id} className="border border-gray-100 rounded-xl p-3">
+              <div
+                key={shoe.id}
+                className={`rounded-xl p-3 border-2 transition-colors ${
+                  shoe.isSuperShoe
+                    ? 'border-violet-200 bg-gradient-to-br from-violet-50 to-indigo-50'
+                    : 'border-gray-100'
+                }`}
+              >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="font-semibold text-gray-900 text-sm truncate">{shoe.name}</p>
+                    <p className={`font-semibold text-sm truncate ${shoe.isSuperShoe ? 'text-violet-700' : 'text-gray-900'}`}>
+                      {shoe.isSuperShoe && <span className="mr-1">⚡</span>}
+                      {shoe.name}
+                    </p>
                     <p className="text-xs text-gray-400 mt-0.5">Since {shoe.addedDate}</p>
                     {shoe.mileageOffset > 0 && (
                       <p className="text-xs text-gray-400 mt-0.5">
@@ -252,18 +325,29 @@ export default function ActiveShoes() {
                     )}
                   </div>
                 </div>
-                <MileageBar miles={totalMiles} />
+
+                <MileageBar miles={totalMiles} isSuperShoe={shoe.isSuperShoe} />
               </div>
             )
           })}
         </div>
       )}
 
-      {/* ── Edit Modal ───────────────────────────────────────── */}
+      {/* ── Edit Modal ─────────────────────────────────────────────────────────── */}
       {editModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-5">Edit Shoe</h3>
+
+            {/* Super Shoe toggle */}
+            <div className="mb-4">
+              <SuperShoeToggle value={editForm.isSuperShoe} onChange={v => setEdit('isSuperShoe', v)} />
+              {editForm.isSuperShoe && (
+                <p className="text-xs text-violet-600 mt-2 leading-relaxed">
+                  ⚡ Carbon plate shoes perform best between <strong>0–150 miles</strong>. Peak race performance fades after 150 mi. Max tracked: 250 mi.
+                </p>
+              )}
+            </div>
 
             {/* Name */}
             <div className="mb-4">

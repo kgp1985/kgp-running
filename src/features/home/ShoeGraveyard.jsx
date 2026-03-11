@@ -4,6 +4,43 @@ import { useRunningLogDb } from '../../hooks/useRunningLogDb.js'
 import { useAuth } from '../../context/AuthContext.jsx'
 
 function Tombstone({ shoe, miles, onEdit }) {
+  const isSuper = shoe.isSuperShoe
+
+  if (isSuper) {
+    // ── Golden super-shoe tombstone ─────────────────────────────────────────
+    return (
+      <div className="flex flex-col items-center group relative">
+        {onEdit && (
+          <button
+            onClick={() => onEdit(shoe)}
+            className="absolute -top-1 -right-1 z-10 w-6 h-6 rounded-full bg-amber-50 border border-amber-300 shadow flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-amber-100"
+            title="Edit mileage"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 112.828 2.828L11.828 15.828a2 2 0 01-1.414.586H8v-2.414a2 2 0 01.586-1.414z" />
+            </svg>
+          </button>
+        )}
+        <div className="relative w-24 rounded-t-full border-2 px-2 pt-4 pb-3 text-center shadow-md transition-all
+          bg-gradient-to-b from-amber-100 to-yellow-200 border-amber-400 group-hover:from-amber-200 group-hover:to-yellow-300">
+          {/* Crown */}
+          <div className="absolute -top-4 left-1/2 -translate-x-1/2 text-amber-500 text-lg leading-none select-none">♛</div>
+          <p className="text-xs font-bold text-amber-700 tracking-widest">R.I.P.</p>
+          <div className="border-t border-amber-300 my-1" />
+          <p className="text-xs font-semibold text-amber-900 leading-tight break-words">{shoe.name}</p>
+          <p className="text-[10px] text-amber-600 mt-1 leading-snug">
+            {shoe.addedDate}<br />—<br />{shoe.retiredDate}
+          </p>
+          <p className="text-xs font-bold text-amber-800 mt-1">{miles.toFixed(0)} mi</p>
+          <p className="text-[9px] text-amber-600 mt-0.5">⚡ Super Shoe</p>
+        </div>
+        <div className="w-28 h-2 rounded-b border-x-2 border-b-2 bg-amber-300 border-amber-400" />
+        <div className="w-32 h-1.5 bg-amber-400 rounded-full mt-0.5 opacity-50" />
+      </div>
+    )
+  }
+
+  // ── Standard tombstone ──────────────────────────────────────────────────────
   return (
     <div className="flex flex-col items-center group relative">
       {onEdit && (
@@ -38,10 +75,10 @@ export default function ShoeGraveyard() {
   const { retiredShoes, loading, updateShoeById } = useShoesDb()
   const { runs } = useRunningLogDb()
 
-  const [editModal, setEditModal] = useState(null)
+  const [editModal, setEditModal]   = useState(null)
   const [offsetInput, setOffsetInput] = useState('')
   const [offsetError, setOffsetError] = useState('')
-  const [saving, setSaving] = useState(false)
+  const [saving, setSaving]           = useState(false)
 
   const runMilesByShoe = runs.reduce((acc, r) => {
     if (r.shoeId) acc[r.shoeId] = (acc[r.shoeId] || 0) + r.distance
@@ -75,7 +112,12 @@ export default function ShoeGraveyard() {
   return (
     <div className="card">
       <h2 className="text-lg font-semibold text-gray-900 mb-1">⚰️ Shoe Graveyard</h2>
-      <p className="text-xs text-gray-400 mb-4">Retired shoes, honored for their service. Hover a tombstone to edit its mileage.</p>
+      <p className="text-xs text-gray-400 mb-4">
+        Retired shoes, honored for their service. Hover a tombstone to edit its mileage.
+        {retiredShoes.some(s => s.isSuperShoe) && (
+          <span className="text-amber-600"> ♛ = Super Shoe</span>
+        )}
+      </p>
 
       {loading ? (
         <p className="text-sm text-gray-400 text-center py-4">Loading...</p>
@@ -96,7 +138,9 @@ export default function ShoeGraveyard() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-1">Edit Mileage</h3>
-            <p className="text-sm text-gray-500 mb-5">{editModal.shoe.name}</p>
+            <p className={`text-sm mb-5 ${editModal.shoe.isSuperShoe ? 'text-amber-600' : 'text-gray-500'}`}>
+              {editModal.shoe.isSuperShoe && '⚡ '}{editModal.shoe.name}
+            </p>
             <div className="mb-2">
               <label className="label">Prior Miles <span className="normal-case font-normal text-gray-400">(optional)</span></label>
               <input

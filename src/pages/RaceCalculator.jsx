@@ -6,6 +6,8 @@ import { calculateVDOT, getTrainingPaces, getEquivalentRaceTimes } from '../util
 import { timeStrToSeconds, secondsToTimeStr, pacePerMileToKm } from '../utils/paceCalc.js'
 import { CALCULATOR_DISTANCES } from '../data/raceDistances.js'
 import { useRunningLogDb } from '../hooks/useRunningLogDb.js'
+import { useVdotGoal } from '../hooks/useVdotGoal.js'
+import { useAuth } from '../context/AuthContext.jsx'
 
 // Distance label to VDOT race key mapping
 const DIST_TO_VDOT_KEY = {
@@ -26,8 +28,12 @@ export default function RaceCalculator() {
   const [paceUnit, setPaceUnit] = useState('mi')
   const [results, setResults] = useState(null)
   const [error, setError] = useState('')
+  const [goalSaved, setGoalSaved] = useState(false)
+  const [goalSaving, setGoalSaving] = useState(false)
 
+  const { user } = useAuth()
   const { runs } = useRunningLogDb()
+  const { setGoal } = useVdotGoal()
 
   const loadFromLog = () => {
     if (!runs.length) { setError('No runs in your log yet.'); return }
@@ -76,6 +82,21 @@ export default function RaceCalculator() {
     const trainingPaces = getTrainingPaces(vdot)
 
     setResults({ vdot, raceTimes, trainingPaces, inputDistKey: DIST_TO_VDOT_KEY[selectedDist.label] })
+    setGoalSaved(false) // reset saved state when new result calculated
+  }
+
+  const handleSetGoal = async () => {
+    if (!results || !user) return
+    setGoalSaving(true)
+    try {
+      const inputTimeStr = inputMode === 'time' ? timeStr : paceStr
+      await setGoal(results.vdot, selectedDist.label, inputTimeStr)
+      setGoalSaved(true)
+    } catch {
+      // silently fail — non-critical
+    } finally {
+      setGoalSaving(false)
+    }
   }
 
   return (
@@ -185,17 +206,42 @@ export default function RaceCalculator() {
             </button>
           </div>
 
-          {/* VDOT badge */}
+          {/* VDOT badge + Set Goal button */}
           {results && (
-            <div className="flex items-center gap-3 bg-black text-white rounded-xl px-4 py-3">
-              <div className="text-center">
-                <p className="text-3xl font-bold text-red-400">{results.vdot.toFixed(1)}</p>
-                <p className="text-xs text-slate-400 mt-0.5">VDOT</p>
+            <div className="space-y-2">
+              <div className="flex items-center gap-3 bg-black text-white rounded-xl px-4 py-3">
+                <div className="text-center">
+                  <p className="text-3xl font-bold text-red-400">{results.vdot.toFixed(1)}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">VDOT</p>
+                </div>
+                <div className="text-xs text-slate-300 leading-relaxed">
+                  <p className="font-medium text-slate-100">Your aerobic fitness index</p>
+                  <p>Based on Jack Daniels' running formula. Higher = more aerobically fit.</p>
+                </div>
               </div>
-              <div className="text-xs text-slate-300 leading-relaxed">
-                <p className="font-medium text-slate-100">Your aerobic fitness index</p>
-                <p>Based on Jack Daniels' running formula. Higher = more aerobically fit.</p>
-              </div>
+
+              {/* Set as Goal VDOT */}
+              {user && (
+                goalSaved ? (
+                  <div className="flex items-center gap-2 px-4 py-2.5 bg-green-50 border border-green-200 rounded-xl text-sm text-green-700">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                    Goal VDOT set to {results.vdot.toFixed(1)} — visible on your home page
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleSetGoal}
+                    disabled={goalSaving}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-red-50 hover:bg-red-100 border border-red-200 rounded-xl text-sm font-medium text-red-700 transition-colors disabled:opacity-50"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 21l1.9-5.7a8.5 8.5 0 1 1 3.8 3.8z" />
+                    </svg>
+                    {goalSaving ? 'Saving…' : `Set VDOT ${results.vdot.toFixed(1)} as my goal`}
+                  </button>
+                )
+              )}
             </div>
           )}
         </div>

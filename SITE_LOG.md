@@ -23,6 +23,8 @@ Status: ✅ Done | 🔄 In Progress | 📋 Planned
 - **Delete runs** — With guard so only owner can delete on Coach Log
 - **PR auto-detection** — Automatically detects PRs for Mile, 5K, 10K, Half Marathon, Marathon when a run is logged
 - **PR bug fixes** — Fixed distance label mismatch ('Mile' vs '1 Mile') and removed invalid `updated_at` column from upsert
+- **Interval logging** — Checkbox toggle in run form to log rep count, rep distance (meters), and rest time for structured workouts
+- **Edit run** — Pencil icon on each row opens a pre-filled modal to edit any existing run
 
 ### Race Calculator
 - **VDOT formula** — Jack Daniels VDOT calculation from any race distance
@@ -92,9 +94,7 @@ Status: ✅ Done | 🔄 In Progress | 📋 Planned
 - **Training Plan ↔ Home Page** — Verify upcoming training widget stays in sync after add/delete/mark done
 
 ### Running Log Enhancements
-- **Edit run** — Ability to edit a logged run after the fact
 - **Make public toggle** — Toggle individual runs as public so they appear on Coach Log for visitors (`is_public` already in DB schema)
-- **Interval logging** — Add interval/rep details when logging a completed run (same as Training Plan form: rep count, distance in meters, rest time) so structured workouts are fully captured in the log
 
 ### Home Page
 - **Completed vs planned overlay** — Visual showing planned miles vs actual miles for the week

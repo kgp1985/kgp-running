@@ -8,6 +8,7 @@ import UpcomingTraining from '../features/home/UpcomingTraining.jsx'
 import PeriodStats from '../features/home/PeriodStats.jsx'
 import ThisWeek from '../features/home/ThisWeek.jsx'
 import RaceCountdown from '../features/home/RaceCountdown.jsx'
+import VdotDisplay from '../features/home/VdotDisplay.jsx'
 
 export default function Home() {
   return (
@@ -36,9 +37,9 @@ export default function Home() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Left column */}
             <div className="space-y-6">
+              <VdotDisplay />
               <PeriodStats />
               <RecentStats />
-              <ActiveShoes />
             </div>
             {/* Right column */}
             <div className="space-y-6">
@@ -47,6 +48,9 @@ export default function Home() {
               <PersonalRecords />
             </div>
           </div>
+
+          {/* Active shoes — full width, 2-per-row grid */}
+          <ActiveShoes />
 
           {/* Shoe graveyard — full width, only shown when shoes have been retired */}
           <ShoeGraveyard />
