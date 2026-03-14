@@ -9,6 +9,7 @@ import RaceCalculator from './pages/RaceCalculator.jsx'
 import WorkoutTypes from './pages/WorkoutTypes.jsx'
 import Login from './pages/Login.jsx'
 import CoachLog from './pages/CoachLog.jsx'
+import Profile from './pages/Profile.jsx'
 
 export default function App() {
   return (
@@ -35,6 +36,14 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <TrainingPlan />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path={ROUTES.PROFILE}
+              element={
+                <ProtectedRoute>
+                  <Profile />
                 </ProtectedRoute>
               }
             />

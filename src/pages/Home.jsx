@@ -9,6 +9,7 @@ import PeriodStats from '../features/home/PeriodStats.jsx'
 import ThisWeek from '../features/home/ThisWeek.jsx'
 import RaceCountdown from '../features/home/RaceCountdown.jsx'
 import VdotDisplay from '../features/home/VdotDisplay.jsx'
+import PendingRunBanner from '../features/watch/PendingRunBanner.jsx'
 
 export default function Home() {
   return (
@@ -27,6 +28,9 @@ export default function Home() {
 
       <PageWrapper>
         <div className="space-y-6">
+          {/* Watch sync pending runs prompt */}
+          <PendingRunBanner />
+
           {/* Weekly mileage — full width, includes 8/18-week toggle */}
           <WeeklyMileage />
 

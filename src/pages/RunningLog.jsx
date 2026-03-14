@@ -7,6 +7,7 @@ import { useRunningLogDb } from '../hooks/useRunningLogDb.js'
 import { usePersonalRecordsDb } from '../hooks/usePersonalRecordsDb.js'
 import { useProfile } from '../hooks/useProfile.js'
 import { secondsToTimeStr } from '../utils/paceCalc.js'
+import PendingRunBanner from '../features/watch/PendingRunBanner.jsx'
 
 const DEFAULT_FILTERS = { workoutType: '', dateFrom: '', dateTo: '', sortBy: 'date-desc' }
 
@@ -82,6 +83,9 @@ export default function RunningLog() {
 
   return (
     <PageWrapper>
+      {/* Watch sync pending runs prompt */}
+      <PendingRunBanner />
+
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Running Log</h1>

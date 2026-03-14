@@ -5,6 +5,7 @@ function dbProfileToProfile(row) {
     id:          row.id,
     displayName: row.display_name ?? null,
     isPublic:    row.is_public ?? false,
+    avatarUrl:   row.avatar_url ?? null,
   }
 }
 
@@ -14,7 +15,7 @@ function dbProfileToProfile(row) {
 export async function fetchMyProfile(userId) {
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, display_name, is_public')
+    .select('id, display_name, is_public, avatar_url')
     .eq('id', userId)
     .maybeSingle()
 
@@ -31,12 +32,13 @@ export async function updateMyProfile(userId, updates) {
   const dbUpdates = {}
   if (updates.displayName !== undefined) dbUpdates.display_name = updates.displayName
   if (updates.isPublic    !== undefined) dbUpdates.is_public    = updates.isPublic
+  if (updates.avatarUrl   !== undefined) dbUpdates.avatar_url   = updates.avatarUrl
 
   const { data, error } = await supabase
     .from('profiles')
     .update(dbUpdates)
     .eq('id', userId)
-    .select('id, display_name, is_public')
+    .select('id, display_name, is_public, avatar_url')
     .single()
 
   if (error) throw error

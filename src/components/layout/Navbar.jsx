@@ -1,7 +1,8 @@
-import { useState } from 'react'
-import { NavLink } from 'react-router-dom'
+import { useState, useRef, useEffect } from 'react'
+import { NavLink, Link } from 'react-router-dom'
 import { ROUTES } from '../../constants/routes.js'
 import { useAuth } from '../../context/AuthContext.jsx'
+import { useProfile } from '../../hooks/useProfile.js'
 
 const NAV_LINKS = [
   { to: ROUTES.HOME,       label: 'Home' },
@@ -12,9 +13,73 @@ const NAV_LINKS = [
   { to: ROUTES.WORKOUTS,   label: 'Workout Types' },
 ]
 
+function ProfileDropdown({ user, profile, signOut }) {
+  const [open, setOpen] = useState(false)
+  const ref             = useRef(null)
+
+  // Close on outside click
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const initials  = (profile?.displayName || user?.email || 'U')[0].toUpperCase()
+  const avatarUrl = profile?.avatarUrl ?? null
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="flex items-center gap-2 border border-zinc-700 rounded-lg px-2.5 py-1.5 hover:border-zinc-500 transition-colors"
+        aria-label="Profile menu"
+      >
+        {/* Avatar */}
+        {avatarUrl ? (
+          <img src={avatarUrl} alt="" className="w-6 h-6 rounded-full object-cover" />
+        ) : (
+          <div className="w-6 h-6 rounded-full bg-red-500 flex items-center justify-center">
+            <span className="text-[10px] font-bold text-white">{initials}</span>
+          </div>
+        )}
+        <span className="text-sm text-gray-300 hidden sm:block">Profile</span>
+        <svg className={`w-3 h-3 text-gray-500 transition-transform ${open ? 'rotate-180' : ''}`}
+          fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {open && (
+        <div className="absolute right-0 mt-2 w-48 bg-zinc-900 border border-zinc-700 rounded-xl shadow-xl py-1 z-50">
+          <div className="px-4 py-2 border-b border-zinc-800">
+            <p className="text-xs font-semibold text-white truncate">
+              {profile?.displayName || 'Runner'}
+            </p>
+            <p className="text-[11px] text-gray-400 truncate">{user?.email}</p>
+          </div>
+          <Link
+            to={ROUTES.PROFILE}
+            onClick={() => setOpen(false)}
+            className="block px-4 py-2.5 text-sm text-gray-300 hover:text-white hover:bg-zinc-800 transition-colors"
+          >
+            My Profile
+          </Link>
+          <button
+            onClick={() => { signOut(); setOpen(false) }}
+            className="block w-full text-left px-4 py-2.5 text-sm text-gray-400 hover:text-white hover:bg-zinc-800 transition-colors"
+          >
+            Sign Out
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
-  const { user, signOut } = useAuth()
+  const { user, signOut }           = useAuth()
+  const { profile }                 = useProfile()
 
   const linkClass = ({ isActive }) =>
     isActive
@@ -43,16 +108,9 @@ export default function Navbar() {
           ))}
           {/* Auth */}
           {user ? (
-            <button
-              onClick={signOut}
-              className="text-gray-400 hover:text-white text-sm transition-colors duration-150 border border-zinc-700 rounded-lg px-3 py-1 hover:border-zinc-500"
-            >
-              Sign Out
-            </button>
+            <ProfileDropdown user={user} profile={profile} signOut={signOut} />
           ) : (
-            <NavLink to={ROUTES.LOGIN} className={linkClass}>
-              Sign In
-            </NavLink>
+            <NavLink to={ROUTES.LOGIN} className={linkClass}>Sign In</NavLink>
           )}
         </div>
 
@@ -78,30 +136,27 @@ export default function Navbar() {
       {mobileOpen && (
         <div className="sm:hidden bg-black border-t border-zinc-800 px-4 py-3 space-y-1">
           {NAV_LINKS.map(({ to, label }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={to === ROUTES.HOME}
+            <NavLink key={to} to={to} end={to === ROUTES.HOME}
               className={mobileLinkClass}
               onClick={() => setMobileOpen(false)}
             >
               {label}
             </NavLink>
           ))}
-          {/* Auth in mobile */}
           {user ? (
-            <button
-              onClick={() => { signOut(); setMobileOpen(false) }}
-              className="block w-full text-left px-4 py-2.5 text-gray-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors duration-150 text-sm"
-            >
-              Sign Out
-            </button>
+            <>
+              <NavLink to={ROUTES.PROFILE} className={mobileLinkClass} onClick={() => setMobileOpen(false)}>
+                My Profile
+              </NavLink>
+              <button
+                onClick={() => { signOut(); setMobileOpen(false) }}
+                className="block w-full text-left px-4 py-2.5 text-gray-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors duration-150 text-sm"
+              >
+                Sign Out
+              </button>
+            </>
           ) : (
-            <NavLink
-              to={ROUTES.LOGIN}
-              className={mobileLinkClass}
-              onClick={() => setMobileOpen(false)}
-            >
+            <NavLink to={ROUTES.LOGIN} className={mobileLinkClass} onClick={() => setMobileOpen(false)}>
               Sign In
             </NavLink>
           )}
