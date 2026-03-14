@@ -1,7 +1,7 @@
 import PageWrapper from '../components/layout/PageWrapper.jsx'
 
 const LAST_UPDATED = 'March 2026'
-const CONTACT_EMAIL = 'kgped417@gmail.com'
+const CONTACT_EMAIL = 'kgp.running@gmail.com'
 
 export default function Privacy() {
   return (
