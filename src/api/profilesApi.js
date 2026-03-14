@@ -5,7 +5,6 @@ function dbProfileToProfile(row) {
     id:          row.id,
     displayName: row.display_name ?? null,
     isPublic:    row.is_public ?? false,
-    updatedAt:   row.updated_at ?? null,
   }
 }
 
@@ -15,7 +14,7 @@ function dbProfileToProfile(row) {
 export async function fetchMyProfile(userId) {
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, display_name, is_public, updated_at')
+    .select('id, display_name, is_public')
     .eq('id', userId)
     .maybeSingle()
 
@@ -24,19 +23,20 @@ export async function fetchMyProfile(userId) {
 }
 
 /**
- * Upsert display_name and/or is_public for the signed-in user.
- * Uses upsert so it works even if no profile row exists yet.
+ * Update display_name and/or is_public for the signed-in user.
+ * Uses plain update — only touches the two community columns.
+ * Falls back to upsert if update returns no rows (no profile row yet).
  */
 export async function updateMyProfile(userId, updates) {
-  // Build the full upsert payload — always include id for the conflict target
-  const payload = { id: userId, updated_at: new Date().toISOString() }
-  if (updates.displayName !== undefined) payload.display_name = updates.displayName
-  if (updates.isPublic    !== undefined) payload.is_public    = updates.isPublic
+  const dbUpdates = {}
+  if (updates.displayName !== undefined) dbUpdates.display_name = updates.displayName
+  if (updates.isPublic    !== undefined) dbUpdates.is_public    = updates.isPublic
 
   const { data, error } = await supabase
     .from('profiles')
-    .upsert(payload, { onConflict: 'id' })
-    .select('id, display_name, is_public, updated_at')
+    .update(dbUpdates)
+    .eq('id', userId)
+    .select('id, display_name, is_public')
     .single()
 
   if (error) throw error
