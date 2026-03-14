@@ -7,7 +7,7 @@ const NAV_LINKS = [
   { to: ROUTES.HOME,       label: 'Home' },
   { to: ROUTES.LOG,        label: 'My Log' },
   { to: ROUTES.PLAN,       label: 'Training Plan' },
-  { to: ROUTES.COACH_LOG,  label: "Kyle's Log" },
+  { to: ROUTES.COACH_LOG,  label: 'Community' },
   { to: ROUTES.CALCULATOR, label: 'Race Calculator' },
   { to: ROUTES.WORKOUTS,   label: 'Workout Types' },
 ]

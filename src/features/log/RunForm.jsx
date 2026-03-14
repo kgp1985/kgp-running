@@ -21,6 +21,8 @@ const DEFAULT_FORM = {
   workoutType: 'easy',
   weather: '',
   notes: '',
+  subtitle: '',
+  isPublic: false,
   shoeId: '',
   hasReps: false,
   repsCount: '',
@@ -81,6 +83,8 @@ export default function RunForm({ onSubmit, onCancel, initialValues }) {
       workoutType: form.workoutType,
       weather: form.weather,
       notes: form.notes,
+      subtitle: form.subtitle || null,
+      isPublic: form.isPublic,
       shoeId: form.shoeId || null,
       repsCount: form.hasReps ? parseInt(form.repsCount) : null,
       repDistanceMeters: form.hasReps ? parseInt(form.repDistanceMeters) : null,
@@ -296,6 +300,19 @@ export default function RunForm({ onSubmit, onCancel, initialValues }) {
         </div>
       )}
 
+      {/* Subtitle / caption */}
+      <div>
+        <label className="label">Caption (optional)</label>
+        <input
+          type="text"
+          className="input"
+          placeholder="A short caption shown on your community post…"
+          maxLength={120}
+          value={form.subtitle}
+          onChange={e => set('subtitle', e.target.value)}
+        />
+      </div>
+
       {/* Notes */}
       <div>
         <label className="label">Notes (optional)</label>
@@ -305,6 +322,26 @@ export default function RunForm({ onSubmit, onCancel, initialValues }) {
           value={form.notes}
           onChange={e => set('notes', e.target.value)}
         />
+      </div>
+
+      {/* Public toggle */}
+      <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+        <div>
+          <p className="text-sm font-medium text-gray-800">Share to Community Feed</p>
+          <p className="text-xs text-gray-400 mt-0.5">Visible to all runners on the Community page</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => set('isPublic', !form.isPublic)}
+          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+            form.isPublic ? 'bg-red-500' : 'bg-gray-300'
+          }`}
+          aria-pressed={form.isPublic}
+        >
+          <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+            form.isPublic ? 'translate-x-6' : 'translate-x-1'
+          }`} />
+        </button>
       </div>
 
       {/* Actions */}

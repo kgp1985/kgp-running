@@ -14,6 +14,7 @@ function dbRunToRun(row) {
     weather:            row.weather ?? '',
     notes:              row.notes ?? '',
     isPublic:           row.is_public,
+    subtitle:           row.subtitle ?? '',
     shoeId:             row.shoe_id ?? null,
     repsCount:          row.reps_count ?? null,
     repDistanceMeters:  row.rep_distance_meters ?? null,
@@ -34,6 +35,7 @@ function runToDbInsert(userId, runData) {
     weather:              runData.weather || null,
     notes:                runData.notes || null,
     is_public:            runData.isPublic ?? false,
+    subtitle:             runData.subtitle || null,
     shoe_id:              runData.shoeId || null,
     reps_count:           runData.repsCount ?? null,
     rep_distance_meters:  runData.repDistanceMeters ?? null,
@@ -112,6 +114,7 @@ export async function updateRun(runId, updates) {
   if (updates.weather            !== undefined) dbUpdates.weather              = updates.weather
   if (updates.notes              !== undefined) dbUpdates.notes                = updates.notes
   if (updates.isPublic           !== undefined) dbUpdates.is_public            = updates.isPublic
+  if (updates.subtitle           !== undefined) dbUpdates.subtitle             = updates.subtitle
   if (updates.shoeId             !== undefined) dbUpdates.shoe_id              = updates.shoeId
   if (updates.repsCount          !== undefined) dbUpdates.reps_count           = updates.repsCount
   if (updates.repDistanceMeters  !== undefined) dbUpdates.rep_distance_meters  = updates.repDistanceMeters
