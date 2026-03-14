@@ -94,6 +94,21 @@ export async function insertRun(userId, runData) {
   return dbRunToRun(data)
 }
 
+/**
+ * Bulk-set is_public on all runs for a user.
+ * Called when the user toggles their profile to public — all existing runs
+ * flip to public so they appear in the community feed immediately.
+ * Toggling back to private does NOT auto-privatise runs (user manages individually).
+ */
+export async function setAllRunsPublic(userId) {
+  const { error } = await supabase
+    .from('runs')
+    .update({ is_public: true })
+    .eq('user_id', userId)
+
+  if (error) throw error
+}
+
 export async function deleteRun(runId) {
   const { error } = await supabase
     .from('runs')

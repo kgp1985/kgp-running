@@ -7,10 +7,11 @@ import { usePersonalRecordsDb } from '../hooks/usePersonalRecordsDb.js'
 import { calculateCurrentVDOT } from '../utils/vdot.js'
 import { useRunningLogDb } from '../hooks/useRunningLogDb.js'
 import { useAuth } from '../context/AuthContext.jsx'
+import { setAllRunsPublic } from '../api/runsApi.js'
 
 // ── Profile Settings Panel ────────────────────────────────────────────────────
 
-function ProfileSettingsPanel({ profile, loading, saveProfile }) {
+function ProfileSettingsPanel({ profile, loading, saveProfile, userId }) {
   const [displayName, setDisplayName] = useState('')
   const [saving, setSaving]           = useState(false)
   const [saved, setSaved]             = useState(false)
@@ -28,10 +29,15 @@ function ProfileSettingsPanel({ profile, loading, saveProfile }) {
   }
 
   const handleTogglePublic = async () => {
+    const newIsPublic = !(profile?.isPublic ?? false)
     setSaving(true)
     setError(null)
     try {
-      await saveProfile({ isPublic: !(profile?.isPublic ?? false) })
+      await saveProfile({ isPublic: newIsPublic })
+      // When going public, bulk-flip all existing runs to public too
+      if (newIsPublic && userId) {
+        await setAllRunsPublic(userId)
+      }
     } catch (e) {
       setError('Could not save. Check your connection and try again.')
     } finally {
@@ -173,6 +179,7 @@ export default function CommunityFeed() {
           profile={profile}
           loading={profileLoading}
           saveProfile={saveProfile}
+          userId={user.id}
         />
       )}
 

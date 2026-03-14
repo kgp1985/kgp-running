@@ -5,6 +5,7 @@ import RunTable from '../features/log/RunTable.jsx'
 import LogFilters from '../features/log/LogFilters.jsx'
 import { useRunningLogDb } from '../hooks/useRunningLogDb.js'
 import { usePersonalRecordsDb } from '../hooks/usePersonalRecordsDb.js'
+import { useProfile } from '../hooks/useProfile.js'
 import { secondsToTimeStr } from '../utils/paceCalc.js'
 
 const DEFAULT_FILTERS = { workoutType: '', dateFrom: '', dateTo: '', sortBy: 'date-desc' }
@@ -21,6 +22,8 @@ function runToFormValues(run) {
     workoutType: run.workoutType,
     weather: run.weather ?? '',
     notes: run.notes ?? '',
+    subtitle: run.subtitle ?? '',
+    isPublic: run.isPublic ?? false,
     shoeId: run.shoeId ?? '',
     hasReps: !!run.repsCount,
     repsCount: run.repsCount ?? '',
@@ -35,6 +38,7 @@ export default function RunningLog() {
   const [filters, setFilters] = useState(DEFAULT_FILTERS)
   const { runs, addRun, deleteRun, updateRun, loading } = useRunningLogDb()
   const { checkAndUpdatePR } = usePersonalRecordsDb()
+  const { profile } = useProfile()
 
   const handleAddRun = async (runData) => {
     const newRun = await addRun(runData)
@@ -100,7 +104,11 @@ export default function RunningLog() {
       {showForm && (
         <div className="card mb-6">
           <h2 className="text-base font-semibold text-gray-900 mb-4">New Run</h2>
-          <RunForm onSubmit={handleAddRun} onCancel={() => setShowForm(false)} />
+          <RunForm
+            onSubmit={handleAddRun}
+            onCancel={() => setShowForm(false)}
+            defaultIsPublic={profile?.isPublic ?? false}
+          />
         </div>
       )}
 

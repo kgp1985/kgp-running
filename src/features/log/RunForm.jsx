@@ -30,8 +30,12 @@ const DEFAULT_FORM = {
   restSeconds: 90,
 }
 
-export default function RunForm({ onSubmit, onCancel, initialValues }) {
-  const [form, setForm] = useState(initialValues ? { ...DEFAULT_FORM, ...initialValues } : DEFAULT_FORM)
+export default function RunForm({ onSubmit, onCancel, initialValues, defaultIsPublic = false }) {
+  const [form, setForm] = useState(() => ({
+    ...DEFAULT_FORM,
+    isPublic: defaultIsPublic,
+    ...(initialValues || {}),
+  }))
   const [errors, setErrors] = useState({})
   const [customRest, setCustomRest] = useState('')
   const { activeShoes } = useShoesDb()
