@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import PageWrapper from '../components/layout/PageWrapper.jsx'
 import RunPostCard from '../features/community/RunPostCard.jsx'
 import { useCommunityFeed } from '../hooks/useCommunityFeed.js'
@@ -11,30 +11,47 @@ import { useAuth } from '../context/AuthContext.jsx'
 // ── Profile Settings Panel ────────────────────────────────────────────────────
 
 function ProfileSettingsPanel({ profile, loading, saveProfile }) {
-  const [displayName, setDisplayName] = useState(profile?.displayName ?? '')
+  const [displayName, setDisplayName] = useState('')
   const [saving, setSaving]           = useState(false)
   const [saved, setSaved]             = useState(false)
+  const [error, setError]             = useState(null)
 
-  // Sync displayName input when profile loads
+  // Sync input whenever profile data arrives (fixes first-load blank state)
+  useEffect(() => {
+    if (profile?.displayName) setDisplayName(profile.displayName)
+  }, [profile?.displayName])
+
   const handleNameChange = (val) => {
     setDisplayName(val)
     setSaved(false)
+    setError(null)
   }
 
   const handleTogglePublic = async () => {
-    if (!profile) return
     setSaving(true)
-    await saveProfile({ isPublic: !profile.isPublic })
-    setSaving(false)
+    setError(null)
+    try {
+      await saveProfile({ isPublic: !(profile?.isPublic ?? false) })
+    } catch (e) {
+      setError('Could not save. Check your connection and try again.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const handleSaveName = async () => {
     if (!displayName.trim()) return
     setSaving(true)
-    await saveProfile({ displayName: displayName.trim() })
-    setSaving(false)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2500)
+    setError(null)
+    try {
+      await saveProfile({ displayName: displayName.trim() })
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2500)
+    } catch (e) {
+      setError('Could not save. Check your connection and try again.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   if (loading) return null
@@ -102,6 +119,10 @@ function ProfileSettingsPanel({ profile, loading, saveProfile }) {
             </button>
           </div>
         </div>
+
+        {error && (
+          <p className="text-xs text-red-500 mt-1">{error}</p>
+        )}
       </div>
     </div>
   )

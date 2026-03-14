@@ -10,7 +10,7 @@ function dbProfileToProfile(row) {
 }
 
 /**
- * Fetch the current user's own profile (always accessible — owner can see their own row).
+ * Fetch the current user's own profile.
  */
 export async function fetchMyProfile(userId) {
   const { data, error } = await supabase
@@ -25,18 +25,17 @@ export async function fetchMyProfile(userId) {
 
 /**
  * Upsert display_name and/or is_public for the signed-in user.
- * Only sends the fields that are provided.
+ * Uses upsert so it works even if no profile row exists yet.
  */
 export async function updateMyProfile(userId, updates) {
-  const dbUpdates = {}
-  if (updates.displayName !== undefined) dbUpdates.display_name = updates.displayName
-  if (updates.isPublic    !== undefined) dbUpdates.is_public    = updates.isPublic
-  dbUpdates.updated_at = new Date().toISOString()
+  // Build the full upsert payload — always include id for the conflict target
+  const payload = { id: userId, updated_at: new Date().toISOString() }
+  if (updates.displayName !== undefined) payload.display_name = updates.displayName
+  if (updates.isPublic    !== undefined) payload.is_public    = updates.isPublic
 
   const { data, error } = await supabase
     .from('profiles')
-    .update(dbUpdates)
-    .eq('id', userId)
+    .upsert(payload, { onConflict: 'id' })
     .select('id, display_name, is_public, updated_at')
     .single()
 
