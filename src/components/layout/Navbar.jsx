@@ -70,6 +70,15 @@ function ProfileDropdown({ user, profile, signOut }) {
           >
             Sign Out
           </button>
+          <div className="border-t border-zinc-800 mt-1 pt-1">
+            <Link
+              to={ROUTES.PRIVACY}
+              onClick={() => setOpen(false)}
+              className="block px-4 py-2 text-xs text-gray-500 hover:text-gray-300 hover:bg-zinc-800 transition-colors"
+            >
+              Privacy Policy
+            </Link>
+          </div>
         </div>
       )}
     </div>
@@ -154,6 +163,9 @@ export default function Navbar() {
               >
                 Sign Out
               </button>
+              <NavLink to={ROUTES.PRIVACY} className={mobileLinkClass} onClick={() => setMobileOpen(false)}>
+                Privacy Policy
+              </NavLink>
             </>
           ) : (
             <NavLink to={ROUTES.LOGIN} className={mobileLinkClass} onClick={() => setMobileOpen(false)}>
