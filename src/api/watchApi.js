@@ -58,6 +58,24 @@ export async function completeCorosCallback(code, state) {
   return callEdgeFunction('coros-oauth-callback', { code, state })
 }
 
+// ── Strava ────────────────────────────────────────────────────────────────────
+
+/**
+ * Start Strava OAuth: get authorization URL from Edge Function and redirect.
+ */
+export async function connectStrava() {
+  const { authUrl } = await callEdgeFunction('strava-oauth-start')
+  window.location.href = authUrl
+}
+
+/**
+ * Complete Strava OAuth callback after redirect back from Strava.
+ * Call when URL contains ?strava_callback=1&code=...
+ */
+export async function completeStravaCallback(code) {
+  return callEdgeFunction('strava-oauth-callback', { code })
+}
+
 // ── Watch Connections ─────────────────────────────────────────────────────────
 
 export async function fetchWatchConnections(userId) {

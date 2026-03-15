@@ -12,6 +12,7 @@ import { usePersonalRecordsDb } from '../../hooks/usePersonalRecordsDb.js'
 const PROVIDER_LABELS = {
   garmin:   { label: 'Garmin',      icon: '⌚', color: 'bg-blue-50 text-blue-700 border-blue-200' },
   coros:    { label: 'Coros',       icon: '⌚', color: 'bg-green-50 text-green-700 border-green-200' },
+  strava:   { label: 'Strava',      icon: '🟠', color: 'bg-orange-50 text-orange-700 border-orange-200' },
   fit_file: { label: 'File Upload', icon: '📁', color: 'bg-gray-50 text-gray-600 border-gray-200' },
 }
 
@@ -42,17 +43,18 @@ export default function PendingRunCard({ run, onSave, onDismiss }) {
     distance:    miles.toFixed(2),
     distanceUnit:'mi',
     durationStr: secondsToTimeStr(run.durationSeconds, run.durationSeconds >= 3600),
-    heartRate:   run.heartRate ?? '',
-    workoutType: 'easy',
-    weather:     '',
-    notes:       '',
-    subtitle:    '',
-    isPublic:    false,
-    shoeId:      '',
-    hasReps:     false,
-    repsCount:   '',
+    heartRate:     run.heartRate ?? '',
+    workoutType:   'easy',
+    weather:       '',
+    notes:         '',
+    subtitle:      '',
+    isPublic:      false,
+    elevationGain: run.elevationGainFeet ?? '',
+    shoeId:        '',
+    hasReps:       false,
+    repsCount:     '',
     repDistanceMeters: '',
-    restSeconds: 90,
+    restSeconds:   90,
   }
 
   const handleSaveAsIs = async () => {
@@ -63,16 +65,17 @@ export default function PendingRunCard({ run, onSave, onDismiss }) {
         distance:    miles,
         distanceUnit:'mi',
         duration:    run.durationSeconds,
-        heartRate:   run.heartRate ?? null,
-        workoutType: 'easy',
-        weather:     null,
-        notes:       null,
-        subtitle:    null,
-        isPublic:    false,
-        shoeId:      null,
-        repsCount:   null,
+        heartRate:     run.heartRate ?? null,
+        workoutType:   'easy',
+        weather:       null,
+        notes:         null,
+        subtitle:      null,
+        isPublic:      false,
+        elevationGain: run.elevationGainFeet ?? null,
+        shoeId:        null,
+        repsCount:     null,
         repDistanceMeters: null,
-        restSeconds: null,
+        restSeconds:   null,
       })
     } finally {
       setSaving(false)
@@ -130,6 +133,12 @@ export default function PendingRunCard({ run, onSave, onDismiss }) {
               <div>
                 <p className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold">Avg HR</p>
                 <p className="text-xl font-bold text-gray-900">{run.heartRate} bpm</p>
+              </div>
+            )}
+            {run.elevationGainFeet && (
+              <div>
+                <p className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold">Vert</p>
+                <p className="text-xl font-bold text-gray-900">{run.elevationGainFeet.toLocaleString()} ft</p>
               </div>
             )}
           </div>

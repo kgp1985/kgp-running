@@ -23,6 +23,7 @@ const DEFAULT_FORM = {
   notes: '',
   subtitle: '',
   isPublic: false,
+  elevationGain: '',
   shoeId: '',
   hasReps: false,
   repsCount: '',
@@ -89,6 +90,7 @@ export default function RunForm({ onSubmit, onCancel, initialValues, defaultIsPu
       notes: form.notes,
       subtitle: form.subtitle || null,
       isPublic: form.isPublic,
+      elevationGain: form.elevationGain ? parseInt(form.elevationGain) : null,
       shoeId: form.shoeId || null,
       repsCount: form.hasReps ? parseInt(form.repsCount) : null,
       repDistanceMeters: form.hasReps ? parseInt(form.repDistanceMeters) : null,
@@ -178,6 +180,22 @@ export default function RunForm({ onSubmit, onCancel, initialValues, defaultIsPu
             onChange={e => set('heartRate', e.target.value)}
           />
           {errors.heartRate && <p className="text-xs text-red-500 mt-1">{errors.heartRate}</p>}
+        </div>
+
+        {/* Vertical Gain */}
+        <div>
+          <label className="label">Vertical Gain / Vert (optional)</label>
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              min="0"
+              className="input flex-1"
+              placeholder="350"
+              value={form.elevationGain}
+              onChange={e => set('elevationGain', e.target.value)}
+            />
+            <span className="text-sm text-gray-400 w-6">ft</span>
+          </div>
         </div>
 
         {/* Weather */}

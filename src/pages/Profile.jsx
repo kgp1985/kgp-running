@@ -10,6 +10,8 @@ import {
   completeGarminCallback,
   connectCoros,
   completeCorosCallback,
+  connectStrava,
+  completeStravaCallback,
   disconnectWatch,
 } from '../api/watchApi.js'
 
@@ -186,6 +188,19 @@ export default function Profile() {
           setSearchParams({})
         })
     }
+
+    const isStravaCallback = searchParams.get('strava_callback') === '1'
+    if (isStravaCallback) {
+      const code = searchParams.get('code') ?? ''
+      setConnecting('strava')
+      completeStravaCallback(code)
+        .then(() => fetchWatchConnections(user.id).then(setWatchConnections))
+        .catch(console.error)
+        .finally(() => {
+          setConnecting(null)
+          setSearchParams({})
+        })
+    }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSaveName = async () => {
@@ -221,6 +236,7 @@ export default function Profile() {
     try {
       if (provider === 'garmin') await connectGarmin()
       if (provider === 'coros')  await connectCoros()
+      if (provider === 'strava') await connectStrava()
     } catch (err) {
       console.error('Connect error:', err)
       setConnecting(null)
@@ -347,6 +363,16 @@ export default function Profile() {
                 onConnect={handleConnect}
                 onDisconnect={handleDisconnect}
               />
+              <WatchRow
+                provider="strava"
+                label="Strava"
+                icon="🟠"
+                description="Auto-sync runs from Strava"
+                connected={isConnected('strava')}
+                connecting={connecting === 'strava'}
+                onConnect={handleConnect}
+                onDisconnect={handleDisconnect}
+              />
 
               {/* Apple Watch — no direct API, offer file upload info */}
               <div className="flex items-start gap-3 py-3">
@@ -423,6 +449,8 @@ function FitFileUploadInline({ userId }) {
         const distMeters  = Number(session.total_distance ?? 0)
         const durSeconds  = Number(session.total_elapsed_time ?? 0)
         const avgHr       = session.avg_heart_rate ? Number(session.avg_heart_rate) : null
+        const totalAscent = session.total_ascent ? Number(session.total_ascent) : null
+        const elevFeet    = totalAscent !== null ? Math.round(totalAscent * 3.28084) : null
         const startTime   = session.start_time
           ? new Date(session.start_time).toISOString().slice(0, 10)
           : new Date().toISOString().slice(0, 10)
@@ -435,11 +463,12 @@ function FitFileUploadInline({ userId }) {
 
         const { insertFitFilePendingRun } = await import('../api/pendingRunsApi.js')
         await insertFitFilePendingRun(userId, {
-          date:            startTime,
-          distanceMeters:  distMeters,
-          durationSeconds: durSeconds,
-          heartRate:       avgHr,
-          rawData:         { file: file.name },
+          date:               startTime,
+          distanceMeters:     distMeters,
+          durationSeconds:    durSeconds,
+          heartRate:          avgHr,
+          elevationGainFeet:  elevFeet,
+          rawData:            { file: file.name },
         })
         setStatus('done')
         setMessage('Run uploaded! It will appear in the watch sync prompt on your Home and Log pages.')

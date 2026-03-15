@@ -25,6 +25,7 @@ function runToFormValues(run) {
     notes: run.notes ?? '',
     subtitle: run.subtitle ?? '',
     isPublic: run.isPublic ?? false,
+    elevationGain: run.elevationGain ?? '',
     shoeId: run.shoeId ?? '',
     hasReps: !!run.repsCount,
     repsCount: run.repsCount ?? '',

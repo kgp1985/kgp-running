@@ -19,6 +19,7 @@ function dbRunToRun(row) {
     repsCount:          row.reps_count ?? null,
     repDistanceMeters:  row.rep_distance_meters ?? null,
     restSeconds:        row.rest_seconds ?? null,
+    elevationGain:      row.elevation_gain ?? null,
   }
 }
 
@@ -40,6 +41,7 @@ function runToDbInsert(userId, runData) {
     reps_count:           runData.repsCount ?? null,
     rep_distance_meters:  runData.repDistanceMeters ?? null,
     rest_seconds:         runData.restSeconds ?? null,
+    elevation_gain:       runData.elevationGain ?? null,
   }
 }
 
@@ -134,6 +136,7 @@ export async function updateRun(runId, updates) {
   if (updates.repsCount          !== undefined) dbUpdates.reps_count           = updates.repsCount
   if (updates.repDistanceMeters  !== undefined) dbUpdates.rep_distance_meters  = updates.repDistanceMeters
   if (updates.restSeconds        !== undefined) dbUpdates.rest_seconds         = updates.restSeconds
+  if (updates.elevationGain      !== undefined) dbUpdates.elevation_gain       = updates.elevationGain
 
   const { data, error } = await supabase
     .from('runs')

@@ -10,9 +10,10 @@ function dbPendingRunToPendingRun(row) {
     distanceMeters:  Number(row.distance_meters),
     distanceMiles:   Number(row.distance_meters) / 1609.344,
     durationSeconds: Number(row.duration_seconds),
-    heartRate:       row.heart_rate ?? null,
-    status:          row.status,
-    createdAt:       row.created_at,
+    heartRate:          row.heart_rate ?? null,
+    elevationGainFeet:  row.elevation_gain_feet ?? null,
+    status:             row.status,
+    createdAt:          row.created_at,
   }
 }
 
@@ -60,9 +61,10 @@ export async function insertFitFilePendingRun(userId, parsed) {
       date:             parsed.date,
       distance_meters:  parsed.distanceMeters,
       duration_seconds: parsed.durationSeconds,
-      heart_rate:       parsed.heartRate ?? null,
-      status:           'pending',
-      raw_data:         parsed.rawData ?? null,
+      heart_rate:           parsed.heartRate ?? null,
+      elevation_gain_feet:  parsed.elevationGainFeet ?? null,
+      status:               'pending',
+      raw_data:             parsed.rawData ?? null,
     })
     .select()
     .single()
