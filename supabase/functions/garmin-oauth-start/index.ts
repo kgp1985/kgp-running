@@ -12,7 +12,6 @@
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { hmac } from 'https://deno.land/x/hmac@v2.0.1/mod.ts'
 
 const GARMIN_REQUEST_TOKEN_URL = 'https://connectapi.garmin.com/oauth-service/oauth/request_token'
 const GARMIN_AUTHORIZE_URL     = 'https://connect.garmin.com/oauthConfirm'
