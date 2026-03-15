@@ -11,6 +11,7 @@ import Login from './pages/Login.jsx'
 import CoachLog from './pages/CoachLog.jsx'
 import Profile from './pages/Profile.jsx'
 import Privacy from './pages/Privacy.jsx'
+import Support from './pages/Support.jsx'
 
 export default function App() {
   return (
@@ -48,7 +49,8 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
-            <Route path={ROUTES.PRIVACY} element={<Privacy />} />
+            <Route path={ROUTES.PRIVACY}  element={<Privacy />} />
+            <Route path={ROUTES.SUPPORT}  element={<Support />} />
           </Routes>
         </div>
       </div>
