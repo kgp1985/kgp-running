@@ -142,6 +142,7 @@ export default function Profile() {
   const [watchConnections, setWatchConnections] = useState([])
   const [watchLoading, setWatchLoading]         = useState(true)
   const [connecting, setConnecting]             = useState(null) // provider currently being connected
+  const [watchError, setWatchError]             = useState(null)
 
   // Sync display name when profile loads
   useEffect(() => {
@@ -233,15 +234,17 @@ export default function Profile() {
 
   const handleConnect = async (provider) => {
     setConnecting(provider)
+    setWatchError(null)
     try {
       if (provider === 'garmin') await connectGarmin()
       if (provider === 'coros')  await connectCoros()
       if (provider === 'strava') await connectStrava()
     } catch (err) {
       console.error('Connect error:', err)
+      setWatchError(`Could not connect ${provider}: ${err.message}`)
       setConnecting(null)
     }
-    // connectGarmin/connectCoros redirect the page, so no finally needed
+    // connectGarmin/connectCoros/connectStrava redirect the page on success, so no finally needed
   }
 
   const handleDisconnect = async (provider) => {
@@ -338,6 +341,10 @@ export default function Profile() {
           <p className="text-xs text-gray-400 mb-4">
             Connect your watch to auto-sync runs. They'll appear as a prompt to review after each activity.
           </p>
+
+          {watchError && (
+            <p className="text-xs text-red-500 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-3">{watchError}</p>
+          )}
 
           {watchLoading ? (
             <p className="text-sm text-gray-400 py-2">Loading…</p>

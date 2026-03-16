@@ -6,10 +6,12 @@
  */
 import { useState } from 'react'
 import { usePendingRuns } from '../../hooks/usePendingRuns.js'
+import { useProfile } from '../../hooks/useProfile.js'
 import PendingRunCard from './PendingRunCard.jsx'
 
 export default function PendingRunBanner() {
   const { pendingRuns, loading, saveRun, dismiss } = usePendingRuns()
+  const { profile } = useProfile()
   const [expanded, setExpanded] = useState(true)
 
   if (loading || pendingRuns.length === 0) return null
@@ -46,13 +48,14 @@ export default function PendingRunBanner() {
 
       {/* Run cards */}
       {expanded && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="space-y-4">
           {pendingRuns.map(run => (
             <PendingRunCard
               key={run.id}
               run={run}
               onSave={saveRun}
               onDismiss={dismiss}
+              defaultIsPublic={profile?.isPublic ?? false}
             />
           ))}
         </div>

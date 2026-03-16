@@ -28,7 +28,7 @@ function fmtPace(miles, seconds) {
   return `${m}:${String(s).padStart(2, '0')} /mi`
 }
 
-export default function PendingRunCard({ run, onSave, onDismiss }) {
+export default function PendingRunCard({ run, onSave, onDismiss, defaultIsPublic = false }) {
   const [mode, setMode]       = useState('preview') // 'preview' | 'edit'
   const [saving, setSaving]   = useState(false)
   const { checkAndUpdatePR }  = usePersonalRecordsDb()
@@ -48,7 +48,7 @@ export default function PendingRunCard({ run, onSave, onDismiss }) {
     weather:       '',
     notes:         '',
     subtitle:      '',
-    isPublic:      false,
+    isPublic:      defaultIsPublic,
     elevationGain: run.elevationGainFeet ?? '',
     shoeId:        '',
     hasReps:       false,
@@ -70,7 +70,7 @@ export default function PendingRunCard({ run, onSave, onDismiss }) {
         weather:       null,
         notes:         null,
         subtitle:      null,
-        isPublic:      false,
+        isPublic:      defaultIsPublic,
         elevationGain: run.elevationGainFeet ?? null,
         shoeId:        null,
         repsCount:     null,
