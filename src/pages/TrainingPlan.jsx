@@ -3,6 +3,7 @@ import PageWrapper from '../components/layout/PageWrapper.jsx'
 import PlannedRunForm from '../features/plan/PlannedRunForm.jsx'
 import RunForm from '../features/log/RunForm.jsx'
 import { usePlannedRunsDb } from '../hooks/usePlannedRunsDb.js'
+import { usePlansDb } from '../hooks/usePlansDb.js'
 import { useRunningLogDb } from '../hooks/useRunningLogDb.js'
 import { usePersonalRecordsDb } from '../hooks/usePersonalRecordsDb.js'
 import { useRacesDb } from '../hooks/useRacesDb.js'
@@ -596,48 +597,14 @@ function estimateVdotFromGoalTime(timeStr, raceDistance) {
 
 function Step3TrainingPrefs({ data, setData }) {
   const daysPerWeekOptions = [3, 4, 5, 6, 7]
-  const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-  const defaultSelections = {
-    3: [1, 3, 5], // Tue, Thu, Sat
-    4: [0, 2, 4, 6], // Mon, Wed, Fri, Sun
-    5: [0, 1, 2, 4, 6], // Mon, Tue, Wed, Fri, Sun
-    6: [0, 1, 2, 3, 4, 6], // Mon–Fri, Sun
-    7: [0, 1, 2, 3, 4, 5, 6],
-  }
-
   const daysPerWeek = data.daysPerWeek || 5
-  const selectedDays = data.trainingDays || defaultSelections[daysPerWeek] || [0, 1, 2, 4, 6]
 
-  const handleToggleDay = (dayIdx) => {
-    let updated = [...selectedDays]
-    if (updated.includes(dayIdx)) {
-      updated = updated.filter(d => d !== dayIdx)
-    } else {
-      updated = [...updated, dayIdx].sort((a, b) => a - b)
-    }
-
-    // Enforce constraint: must have exactly daysPerWeek days selected
-    if (updated.length < daysPerWeek) {
-      // Need to add more days
-      const missing = daysPerWeek - updated.length
-      for (let i = 0; i < 7 && missing > 0; i++) {
-        if (!updated.includes(i)) {
-          updated.push(i)
-          updated.sort((a, b) => a - b)
-          missing--
-        }
-      }
-    } else if (updated.length > daysPerWeek) {
-      // Deselect the earliest one to maintain constraint
-      if (dayIdx === selectedDays[0]) {
-        // User deselected the earliest one, so it's handled already
-      } else {
-        // User added a new one, deselect the earliest
-        updated = updated.filter(d => d !== selectedDays[0])
-      }
-    }
-
-    setData({ ...data, trainingDays: updated })
+  const scheduleDescriptions = {
+    3: 'Mon · Thu · Sun — great for beginners or athletes balancing other sports.',
+    4: 'Mon · Wed · Sat · Sun — solid base with one quality session per week.',
+    5: 'Mon · Tue · Thu · Sat · Sun — two quality sessions plus comfortable easy mileage.',
+    6: 'Mon–Wed · Fri–Sun — high volume with a mid-week medium-long run for marathon training.',
+    7: 'Daily running — advanced runners only. Full quality and volume schedule.',
   }
 
   return (
@@ -673,15 +640,15 @@ function Step3TrainingPrefs({ data, setData }) {
 
       <div>
         <label className="label mb-2">Days per Week</label>
-        <div className="grid grid-cols-4 gap-2">
+        <p className="text-xs text-gray-500 mb-3">
+          We'll build the best schedule for you automatically — move individual runs any time after generating.
+        </p>
+        <div className="grid grid-cols-5 gap-2">
           {daysPerWeekOptions.map(d => (
             <button
               key={d}
-              onClick={() => {
-                const newDefaults = defaultSelections[d]
-                setData({ ...data, daysPerWeek: d, trainingDays: newDefaults })
-              }}
-              className={`px-4 py-2 rounded-lg font-semibold text-sm transition-colors ${
+              onClick={() => setData({ ...data, daysPerWeek: d })}
+              className={`py-3 rounded-xl font-bold text-sm transition-colors ${
                 daysPerWeek === d ? 'bg-black text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
@@ -689,23 +656,8 @@ function Step3TrainingPrefs({ data, setData }) {
             </button>
           ))}
         </div>
-      </div>
-
-      <div>
-        <label className="label mb-3">Training Days</label>
-        <p className="text-xs text-gray-500 mb-2">Select exactly {daysPerWeek} days</p>
-        <div className="grid grid-cols-7 gap-2">
-          {dayLabels.map((label, idx) => (
-            <button
-              key={idx}
-              onClick={() => handleToggleDay(idx)}
-              className={`p-2 rounded-lg font-semibold text-sm transition-colors ${
-                selectedDays.includes(idx) ? 'bg-black text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
+        <div className="mt-3 bg-gray-50 rounded-xl p-4">
+          <p className="text-xs text-gray-600">{scheduleDescriptions[daysPerWeek]}</p>
         </div>
       </div>
     </div>
@@ -891,9 +843,7 @@ function Step4FitnessAssessment({ data, setData, runs, prs }) {
 function Step5PreviewGenerate({ data, runs, prs }) {
   const peakMileage = data.peakMileage || 50
   const startingMileage = data.startingMileage || Math.max(scoredWeeklyMileage(runs), Math.round(peakMileage * 0.55))
-  const trainingDays = data.trainingDays || [0, 1, 2, 4, 6]
-  const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-  const daysLabel = trainingDays.map(d => dayLabels[d]).join(', ')
+  const daysPerWeek = data.daysPerWeek || 5
 
   const raceDists = { '5k': '5K', '10k': '10K', 'half': 'Half Marathon', 'marathon': 'Marathon' }
   const raceDate = new Date(data.raceDate + 'T00:00:00')
@@ -940,7 +890,7 @@ function Step5PreviewGenerate({ data, runs, prs }) {
 
         <div>
           <p className="text-xs text-gray-500 uppercase font-semibold">Training Days</p>
-          <p className="text-lg font-bold text-gray-900">{daysLabel}</p>
+          <p className="text-lg font-bold text-gray-900">{daysPerWeek} days per week</p>
         </div>
 
         <div>
@@ -963,6 +913,7 @@ function Step5PreviewGenerate({ data, runs, prs }) {
 
 export default function TrainingPlan() {
   const { plannedRuns, upcomingRuns, loading, addPlannedRun, removePlannedRun, editPlannedRun } = usePlannedRunsDb()
+  const { addPlan } = usePlansDb()
   const { runs } = useRunningLogDb()
   const { addRun } = useRunningLogDb()
   const { prs, checkAndUpdatePR } = usePersonalRecordsDb()
@@ -983,6 +934,8 @@ export default function TrainingPlan() {
     saveToProfile: true,
   })
   const [generating, setGenerating] = useState(false)
+  const [conflictState, setConflictState] = useState(null) // { runs, conflicts }
+  const [conflictModalOpen, setConflictModalOpen] = useState(false)
 
   const handleAddPlan = async (data) => {
     await addPlannedRun(data)
@@ -1021,7 +974,7 @@ export default function TrainingPlan() {
   const canProceedToNext = () => {
     if (wizardStep === 1) return wizardData.planStyle
     if (wizardStep === 2) return wizardData.raceDate || wizardData.noRace
-    if (wizardStep === 3) return wizardData.daysPerWeek && wizardData.trainingDays
+    if (wizardStep === 3) return wizardData.daysPerWeek
     if (wizardStep === 4) return true
     if (wizardStep === 5) return true
     return false
@@ -1100,30 +1053,93 @@ export default function TrainingPlan() {
         else mileageLevel = 'beginner'
       }
 
-      const plannedRuns = generatePlan({
+      const generatedRuns = generatePlan({
         raceDistance: planRaceDistance,
         raceDate: planRaceDate,
         currentVdot,
         mileageLevel,
-        trainingDays: wizardData.trainingDays,
+        daysPerWeek: wizardData.daysPerWeek || 5,
         startingMileage: wizardData.startingMileage,
+        peakMileage: wizardData.peakMileage,
         vdotApproach: wizardData.vdotApproach,
         goalVdot,
       })
 
-      // Insert runs
-      for (const run of plannedRuns) {
-        await addPlannedRun({
-          ...run,
-          targetRace: wizardData.raceName || undefined,
-        })
+      // Check for conflicts with existing planned runs
+      const planStartDate = generatedRuns[0]?.date
+      const planEndDate = generatedRuns[generatedRuns.length - 1]?.date
+      const existingConflicts = plannedRuns.filter(
+        r => r.date >= planStartDate && r.date <= planEndDate
+      )
+
+      if (existingConflicts.length > 0) {
+        setConflictState({ runs: generatedRuns, conflicts: existingConflicts })
+        setConflictModalOpen(true)
+        setGenerating(false)
+        return
       }
 
+      // No conflicts — create plan entity then insert runs
+      await insertPlanWithRuns(generatedRuns)
       closeWizard()
     } catch (err) {
       console.error('Error generating plan:', err)
     } finally {
       setGenerating(false)
+    }
+  }
+
+  // Helper: creates a plan record then bulk-inserts all runs with planId attached
+  const insertPlanWithRuns = async (runsToInsert) => {
+    const raceDists = { '5k': '5K', '10k': '10K', half: 'Half Marathon', marathon: 'Marathon' }
+    const planName = wizardData.raceName
+      || `${raceDists[wizardData.raceDistance] || 'Training'} Plan`
+
+    let planId = null
+    try {
+      const plan = await addPlan({
+        name:         planName,
+        raceDistance: wizardData.raceDistance || null,
+        raceDate:     wizardData.raceDate || null,
+        planStyle:    wizardData.planStyle || 'coach',
+        coachStyle:   wizardData.coachStyle || null,
+        daysPerWeek:  wizardData.daysPerWeek || 5,
+        peakMileage:  wizardData.peakMileage || null,
+        totalWeeks:   runsToInsert.length > 0
+          ? Math.ceil(runsToInsert.length / (wizardData.daysPerWeek || 5))
+          : null,
+      })
+      planId = plan?.id || null
+    } catch {
+      // Plans table may not exist yet — degrade gracefully
+    }
+
+    for (const run of runsToInsert) {
+      await addPlannedRun({
+        ...run,
+        planId,
+        targetRace: wizardData.raceName || undefined,
+      })
+    }
+  }
+
+  const handleResolveConflict = async (replaceExisting) => {
+    if (!conflictState) return
+    setGenerating(true)
+    try {
+      if (replaceExisting) {
+        for (const run of conflictState.conflicts) {
+          await removePlannedRun(run.id)
+        }
+      }
+      await insertPlanWithRuns(conflictState.runs)
+    } catch (err) {
+      console.error('Error resolving conflict:', err)
+    } finally {
+      setGenerating(false)
+      setConflictModalOpen(false)
+      setConflictState(null)
+      closeWizard()
     }
   }
 
@@ -1219,6 +1235,56 @@ export default function TrainingPlan() {
                   {generating ? 'Generating...' : 'Generate & Save Plan'}
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Conflict Resolution Modal */}
+      {conflictModalOpen && conflictState && (
+        <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                <svg className="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Existing Runs Detected</h3>
+                <p className="text-sm text-gray-500">
+                  {conflictState.conflicts.length} planned run{conflictState.conflicts.length !== 1 ? 's' : ''} already exist during this plan&apos;s dates.
+                </p>
+              </div>
+            </div>
+
+            <p className="text-sm text-gray-600 mb-6">
+              Your new plan runs from <strong>{conflictState.runs[0]?.date}</strong> to <strong>{conflictState.runs[conflictState.runs.length - 1]?.date}</strong>.
+              Replace the existing runs or keep both?
+            </p>
+
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => handleResolveConflict(true)}
+                disabled={generating}
+                className="w-full px-4 py-3 rounded-xl bg-black text-white font-semibold text-sm hover:bg-gray-800 disabled:bg-gray-300 transition-colors"
+              >
+                {generating ? 'Saving...' : `Replace ${conflictState.conflicts.length} existing run${conflictState.conflicts.length !== 1 ? 's' : ''}`}
+              </button>
+              <button
+                onClick={() => handleResolveConflict(false)}
+                disabled={generating}
+                className="w-full px-4 py-3 rounded-xl bg-gray-100 text-gray-800 font-semibold text-sm hover:bg-gray-200 disabled:bg-gray-50 transition-colors"
+              >
+                Keep both
+              </button>
+              <button
+                onClick={() => { setConflictModalOpen(false); setConflictState(null) }}
+                disabled={generating}
+                className="w-full px-4 py-2 text-gray-500 text-sm hover:text-gray-700"
+              >
+                Cancel
+              </button>
             </div>
           </div>
         </div>

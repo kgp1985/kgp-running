@@ -1,511 +1,294 @@
 /**
- * Training plan generator — creates week-by-week plans for goal races.
- * Based on Pfitzinger's Advanced Marathoning framework and adapted for 5K–Marathon distances.
+ * Training plan generator
+ *
+ * Principles applied:
+ *  - Week always starts on Monday (snapped from today)
+ *  - Intra-phase mileage ramp (linear, not flat)
+ *  - Cutback week every 3rd week (~80%) during base/development/peak
+ *  - Two quality sessions per week for 4+ day plans
+ *  - Medium-long run (MLR) for marathon plans with 6+ days
+ *  - Progressive long-run distance (capped per distance)
+ *  - Accurate raceDistance lookup for mileage targets
  */
 
 import { getTrainingPaces } from './vdot.js'
 
-/**
- * Convert seconds to M:SS format.
- */
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
 function secToMinSec(secs) {
   const m = Math.floor(secs / 60)
   const s = Math.round(secs % 60)
   return `${m}:${String(s).padStart(2, '0')}`
 }
 
-/**
- * Generate a complete training plan.
- * @param {Object} config
- *   - raceDistance: 'marathon' | 'half' | '10k' | '5k'
- *   - raceDate: 'YYYY-MM-DD' ISO date
- *   - currentVdot: number (e.g. 45.2)
- *   - mileageLevel: 'beginner' | 'intermediate' | 'advanced'
- *   - trainingDays: optional array of numbers 0-6 (0=Mon, 6=Sun), sorted. Defaults to [0,1,2,3,4,5,6]
- *   - startingMileage: optional override for starting weekly mileage
- *   - vdotApproach: 'current' | 'goal' | 'progressive' (defaults to 'current')
- *   - goalVdot: optional target VDOT for progressive mode
- * @returns {Array} Array of planned runs, ready to insert to DB
- */
-export function generatePlan({ raceDistance, raceDate, currentVdot, mileageLevel, trainingDays, startingMileage, vdotApproach = 'current', goalVdot }) {
-  if (!raceDistance || !raceDate || !currentVdot || !mileageLevel) {
-    throw new Error('Missing required plan parameters')
-  }
+// ─── Plan config ─────────────────────────────────────────────────────────────
 
-  const raceDateObj = new Date(raceDate + 'T00:00:00')
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-
-  // Plan structure: total weeks, phases, etc.
-  const planConfig = getPlanConfig(raceDistance)
-  const basePaces = getTrainingPaces(currentVdot)
-
-  // Calculate how many weeks until race
-  const weeksToRace = Math.ceil((raceDateObj - today) / (7 * 24 * 60 * 60 * 1000))
-  const totalWeeks = Math.min(planConfig.totalWeeks, Math.max(4, weeksToRace))
-
-  // Default training days to all 7 if not provided
-  const effectiveTrainingDays = trainingDays && trainingDays.length > 0 ? trainingDays.sort((a, b) => a - b) : [0, 1, 2, 3, 4, 5, 6]
-
-  // Calculate progressive VDOT per week if needed
-  const progressiveVdots = vdotApproach === 'progressive' && totalWeeks > 1
-    ? calculateProgressiveVdots(currentVdot, goalVdot || currentVdot + 5, totalWeeks)
-    : null
-
-  // Generate week-by-week runs
-  const allRuns = []
-
-  for (let week = 1; week <= totalWeeks; week++) {
-    const weekStart = new Date(today)
-    weekStart.setDate(weekStart.getDate() + (week - 1) * 7)
-
-    // Find which phase we're in
-    const phase = findPhase(planConfig.phases, week)
-
-    // Get weekly mileage target for this phase
-    let weeklyMileage = getWeeklyMileage(planConfig, phase, mileageLevel, week, totalWeeks, startingMileage)
-
-    // Get the template for this week/phase — adapted for training days
-    const weekTemplate = getWeekTemplate(raceDistance, phase, week, totalWeeks, effectiveTrainingDays)
-
-    // Determine effective VDOT for this week
-    let weekVdot = currentVdot
-    if (vdotApproach === 'goal') {
-      weekVdot = goalVdot || currentVdot
-    } else if (vdotApproach === 'progressive' && progressiveVdots) {
-      weekVdot = progressiveVdots[week - 1]
-    }
-    const paces = getTrainingPaces(weekVdot)
-
-    // Generate runs for this week
-    const weekRuns = generateWeekRuns(
-      weekStart,
-      weekTemplate,
-      weeklyMileage,
-      paces,
-      raceDistance,
-      `${raceDistance.charAt(0).toUpperCase() + raceDistance.slice(1)} ${raceDateObj.getFullYear()}`
-    )
-
-    allRuns.push(...weekRuns)
-  }
-
-  return allRuns
-}
-
-/**
- * Calculate progressive VDOT targets for each week.
- * Linearly interpolates from currentVdot to goalVdot over the plan duration.
- */
-function calculateProgressiveVdots(currentVdot, goalVdot, totalWeeks) {
-  const vdots = []
-  const gap = goalVdot - currentVdot
-  for (let week = 0; week < totalWeeks; week++) {
-    const progress = week / (totalWeeks - 1) // 0 to 1
-    const weekVdot = currentVdot + gap * progress
-    vdots.push(Math.round(weekVdot * 10) / 10)
-  }
-  return vdots
-}
-
-/**
- * Get plan configuration (total weeks, phases) for a race distance.
- */
 function getPlanConfig(raceDistance) {
   const configs = {
     marathon: {
       totalWeeks: 18,
       phases: [
-        { name: 'base', weeks: '1-4' },
-        { name: 'development', weeks: '5-12' },
-        { name: 'peak', weeks: '13-16' },
-        { name: 'taper', weeks: '17-18' },
+        { name: 'base',        start: 1,  end: 4  },
+        { name: 'development', start: 5,  end: 12 },
+        { name: 'peak',        start: 13, end: 16 },
+        { name: 'taper',       start: 17, end: 18 },
       ],
     },
     half: {
       totalWeeks: 12,
       phases: [
-        { name: 'base', weeks: '1-3' },
-        { name: 'development', weeks: '4-9' },
-        { name: 'peak', weeks: '10-11' },
-        { name: 'taper', weeks: '12' },
+        { name: 'base',        start: 1,  end: 3  },
+        { name: 'development', start: 4,  end: 9  },
+        { name: 'peak',        start: 10, end: 11 },
+        { name: 'taper',       start: 12, end: 12 },
       ],
     },
     '10k': {
       totalWeeks: 8,
       phases: [
-        { name: 'base', weeks: '1-2' },
-        { name: 'development', weeks: '3-6' },
-        { name: 'peak', weeks: '7' },
-        { name: 'taper', weeks: '8' },
+        { name: 'base',        start: 1, end: 2 },
+        { name: 'development', start: 3, end: 6 },
+        { name: 'peak',        start: 7, end: 7 },
+        { name: 'taper',       start: 8, end: 8 },
       ],
     },
     '5k': {
       totalWeeks: 6,
       phases: [
-        { name: 'base', weeks: '1' },
-        { name: 'development', weeks: '2-4' },
-        { name: 'peak', weeks: '5' },
-        { name: 'taper', weeks: '6' },
+        { name: 'base',        start: 1, end: 1 },
+        { name: 'development', start: 2, end: 4 },
+        { name: 'peak',        start: 5, end: 5 },
+        { name: 'taper',       start: 6, end: 6 },
       ],
     },
   }
   return configs[raceDistance] || configs.marathon
 }
 
-/**
- * Determine which phase a given week falls into.
- */
-function findPhase(phases, week) {
+function findPhaseForWeek(phases, week) {
   for (const p of phases) {
-    const parts = p.weeks.split('-')
-    const start = parseInt(parts[0])
-    const end = parseInt(parts[1])
-    if (week >= start && week <= end) return p.name
+    if (week >= p.start && week <= p.end) return p
   }
-  return 'peak'
+  return phases[phases.length - 1]
 }
 
-/**
- * Calculate weekly mileage for a given phase and level.
- * @param {Object} config - plan configuration
- * @param {string} phase - phase name
- * @param {string} level - mileage level
- * @param {number} week - current week number
- * @param {number} totalWeeks - total weeks in plan
- * @param {number} startingMileage - optional override for starting weekly mileage
- */
-function getWeeklyMileage(config, phase, level, week, totalWeeks, startingMileage) {
-  // Mileage ramp-up patterns
-  const mileageByLevel = {
-    beginner: {
-      marathon: { base: 35, development: 45, peak: 55, taper: 30 },
-      half: { base: 25, development: 32, peak: 40, taper: 24 },
-      '10k': { base: 20, development: 27, peak: 35, taper: 21 },
-      '5k': { base: 15, development: 20, peak: 28, taper: 17 },
-    },
-    intermediate: {
-      marathon: { base: 45, development: 55, peak: 65, taper: 40 },
-      half: { base: 35, development: 42, peak: 50, taper: 30 },
-      '10k': { base: 30, development: 37, peak: 45, taper: 27 },
-      '5k': { base: 25, development: 30, peak: 38, taper: 23 },
-    },
-    advanced: {
-      marathon: { base: 55, development: 68, peak: 80, taper: 50 },
-      half: { base: 45, development: 55, peak: 60, taper: 36 },
-      '10k': { base: 40, development: 48, peak: 55, taper: 33 },
-      '5k': { base: 35, development: 42, peak: 48, taper: 29 },
-    },
+// ─── Default peak mileage by level ───────────────────────────────────────────
+
+function getDefaultPeak(raceDistance, level) {
+  const table = {
+    beginner:     { marathon: 40, half: 30, '10k': 28, '5k': 22 },
+    intermediate: { marathon: 55, half: 45, '10k': 40, '5k': 35 },
+    advanced:     { marathon: 70, half: 60, '10k': 55, '5k': 48 },
   }
-
-  const distKey =
-    Object.keys(config.phases[0]).includes('totalWeeks') ? 'marathon' : Object.keys(mileageByLevel[level])[0]
-  const raceDist = Object.keys(mileageByLevel[level]).find((d) => {
-    const cfg = getPlanConfig(d)
-    return cfg.phases.some((p) => p.name === phase)
-  }) || 'marathon'
-
-  let baseMileage = mileageByLevel[level][raceDist][phase] || 40
-
-  // Use startingMileage override if provided and we're in the base phase
-  if (startingMileage && phase === 'base' && week === 1) {
-    baseMileage = startingMileage
-  } else if (startingMileage && phase === 'base') {
-    // Scale up from starting mileage through base phase
-    const defaultBase = mileageByLevel[level][raceDist]['base']
-    const ratio = startingMileage / defaultBase
-    baseMileage = Math.round(mileageByLevel[level][raceDist][phase] * ratio)
-  }
-
-  // Apply taper reduction
-  if (phase === 'taper') {
-    const weekInPhase = week % 2
-    if (weekInPhase === 1) return Math.round(baseMileage * 0.7) // Week 1 of taper: -30%
-    return Math.round(baseMileage * 0.5) // Week 2 of taper: -50%
-  }
-
-  return baseMileage
+  return (table[level] || table.intermediate)[raceDistance] || 50
 }
 
+// ─── Mileage progression ─────────────────────────────────────────────────────
+
 /**
- * Get the weekly run template (which days have which workout types).
- * @param {string} raceDistance - race distance
- * @param {string} phase - training phase
- * @param {number} week - current week
- * @param {number} totalWeeks - total weeks
- * @param {Array} trainingDays - array of day numbers (0-6, 0=Mon, 6=Sun) where runs are planned
+ * Builds a week-by-week mileage array with:
+ *  - Linear ramp within each non-taper phase
+ *  - Cutback every 3rd overall week (80% of that week's target)
+ *  - Sharp taper: week1 = 70%, week2 = 50% (of peak), etc.
  */
-function getWeekTemplate(raceDistance, phase, week, totalWeeks, trainingDays = [0,1,2,3,4,5,6]) {
-  // Mon=0, Tue=1, ... Sun=6
-  const templates = {
-    marathon: {
-      base: [
-        { day: 0, type: 'recovery', distPct: 0.08 }, // Mon
-        { day: 1, type: 'easy', distPct: 0.12 }, // Tue
-        { day: 2, type: 'recovery', distPct: 0.08 }, // Wed
-        { day: 3, type: 'easy', distPct: 0.12 }, // Thu
-        { day: 4, type: 'recovery', distPct: 0.07 }, // Fri
-        { day: 5, type: 'easy', distPct: 0.13 }, // Sat
-        { day: 6, type: 'long', distPct: 0.4 }, // Sun
-      ],
-      development: [
-        { day: 0, type: 'recovery', distPct: 0.08 }, // Mon
-        { day: 1, type: 'easy', distPct: 0.13 }, // Tue
-        { day: 2, type: 'tempo', distPct: 0.15 }, // Wed (add LT)
-        { day: 3, type: 'easy', distPct: 0.12 }, // Thu
-        { day: 4, type: 'recovery', distPct: 0.07 }, // Fri
-        { day: 5, type: 'easy', distPct: 0.13 }, // Sat
-        { day: 6, type: 'long', distPct: 0.32 }, // Sun
-      ],
-      peak: [
-        { day: 0, type: 'recovery', distPct: 0.08 }, // Mon
-        { day: 1, type: 'easy', distPct: 0.12 }, // Tue
-        { day: 2, type: 'tempo', distPct: 0.14 }, // Wed
-        { day: 3, type: 'interval', distPct: 0.14 }, // Thu (add intervals)
-        { day: 4, type: 'recovery', distPct: 0.07 }, // Fri
-        { day: 5, type: 'easy', distPct: 0.13 }, // Sat
-        { day: 6, type: 'long', distPct: 0.32 }, // Sun
-      ],
-      taper: [
-        { day: 0, type: 'recovery', distPct: 0.1 }, // Mon
-        { day: 1, type: 'easy', distPct: 0.15 }, // Tue
-        { day: 2, type: 'tempo', distPct: 0.12 }, // Wed
-        { day: 3, type: 'recovery', distPct: 0.08 }, // Thu
-        { day: 4, type: 'recovery', distPct: 0.05 }, // Fri
-        { day: 5, type: 'easy', distPct: 0.15 }, // Sat
-        { day: 6, type: 'long', distPct: 0.35 }, // Sun
-      ],
-    },
-    half: {
-      base: [
-        { day: 0, type: 'recovery', distPct: 0.08 },
-        { day: 1, type: 'easy', distPct: 0.13 },
-        { day: 2, type: 'recovery', distPct: 0.08 },
-        { day: 3, type: 'easy', distPct: 0.13 },
-        { day: 4, type: 'recovery', distPct: 0.08 },
-        { day: 5, type: 'easy', distPct: 0.13 },
-        { day: 6, type: 'long', distPct: 0.37 },
-      ],
-      development: [
-        { day: 0, type: 'recovery', distPct: 0.08 },
-        { day: 1, type: 'tempo', distPct: 0.14 },
-        { day: 2, type: 'recovery', distPct: 0.08 },
-        { day: 3, type: 'easy', distPct: 0.12 },
-        { day: 4, type: 'recovery', distPct: 0.07 },
-        { day: 5, type: 'easy', distPct: 0.14 },
-        { day: 6, type: 'long', distPct: 0.37 },
-      ],
-      peak: [
-        { day: 0, type: 'recovery', distPct: 0.07 },
-        { day: 1, type: 'tempo', distPct: 0.13 },
-        { day: 2, type: 'recovery', distPct: 0.07 },
-        { day: 3, type: 'interval', distPct: 0.13 },
-        { day: 4, type: 'recovery', distPct: 0.07 },
-        { day: 5, type: 'easy', distPct: 0.14 },
-        { day: 6, type: 'long', distPct: 0.39 },
-      ],
-      taper: [
-        { day: 0, type: 'recovery', distPct: 0.1 },
-        { day: 1, type: 'easy', distPct: 0.15 },
-        { day: 2, type: 'tempo', distPct: 0.1 },
-        { day: 3, type: 'recovery', distPct: 0.08 },
-        { day: 4, type: 'recovery', distPct: 0.05 },
-        { day: 5, type: 'easy', distPct: 0.17 },
-        { day: 6, type: 'long', distPct: 0.35 },
-      ],
-    },
-    '10k': {
-      base: [
-        { day: 0, type: 'recovery', distPct: 0.08 },
-        { day: 1, type: 'easy', distPct: 0.14 },
-        { day: 2, type: 'recovery', distPct: 0.08 },
-        { day: 3, type: 'easy', distPct: 0.14 },
-        { day: 4, type: 'recovery', distPct: 0.08 },
-        { day: 5, type: 'easy', distPct: 0.14 },
-        { day: 6, type: 'long', distPct: 0.34 },
-      ],
-      development: [
-        { day: 0, type: 'recovery', distPct: 0.08 },
-        { day: 1, type: 'tempo', distPct: 0.14 },
-        { day: 2, type: 'recovery', distPct: 0.08 },
-        { day: 3, type: 'interval', distPct: 0.14 },
-        { day: 4, type: 'recovery', distPct: 0.08 },
-        { day: 5, type: 'easy', distPct: 0.14 },
-        { day: 6, type: 'long', distPct: 0.34 },
-      ],
-      peak: [
-        { day: 0, type: 'recovery', distPct: 0.07 },
-        { day: 1, type: 'tempo', distPct: 0.13 },
-        { day: 2, type: 'recovery', distPct: 0.07 },
-        { day: 3, type: 'interval', distPct: 0.13 },
-        { day: 4, type: 'recovery', distPct: 0.07 },
-        { day: 5, type: 'easy', distPct: 0.13 },
-        { day: 6, type: 'long', distPct: 0.4 },
-      ],
-      taper: [
-        { day: 0, type: 'recovery', distPct: 0.1 },
-        { day: 1, type: 'easy', distPct: 0.15 },
-        { day: 2, type: 'recovery', distPct: 0.1 },
-        { day: 3, type: 'interval', distPct: 0.1 },
-        { day: 4, type: 'recovery', distPct: 0.05 },
-        { day: 5, type: 'easy', distPct: 0.15 },
-        { day: 6, type: 'long', distPct: 0.35 },
-      ],
-    },
-    '5k': {
-      base: [
-        { day: 0, type: 'recovery', distPct: 0.1 },
-        { day: 1, type: 'easy', distPct: 0.15 },
-        { day: 2, type: 'recovery', distPct: 0.1 },
-        { day: 3, type: 'easy', distPct: 0.15 },
-        { day: 4, type: 'recovery', distPct: 0.1 },
-        { day: 5, type: 'easy', distPct: 0.15 },
-        { day: 6, type: 'long', distPct: 0.25 },
-      ],
-      development: [
-        { day: 0, type: 'recovery', distPct: 0.08 },
-        { day: 1, type: 'interval', distPct: 0.15 },
-        { day: 2, type: 'recovery', distPct: 0.08 },
-        { day: 3, type: 'repetition', distPct: 0.14 },
-        { day: 4, type: 'recovery', distPct: 0.08 },
-        { day: 5, type: 'easy', distPct: 0.14 },
-        { day: 6, type: 'long', distPct: 0.33 },
-      ],
-      peak: [
-        { day: 0, type: 'recovery', distPct: 0.07 },
-        { day: 1, type: 'interval', distPct: 0.14 },
-        { day: 2, type: 'recovery', distPct: 0.07 },
-        { day: 3, type: 'repetition', distPct: 0.14 },
-        { day: 4, type: 'recovery', distPct: 0.07 },
-        { day: 5, type: 'easy', distPct: 0.14 },
-        { day: 6, type: 'long', distPct: 0.37 },
-      ],
-      taper: [
-        { day: 0, type: 'recovery', distPct: 0.1 },
-        { day: 1, type: 'easy', distPct: 0.12 },
-        { day: 2, type: 'recovery', distPct: 0.1 },
-        { day: 3, type: 'repetition', distPct: 0.1 },
-        { day: 4, type: 'recovery', distPct: 0.08 },
-        { day: 5, type: 'easy', distPct: 0.15 },
-        { day: 6, type: 'long', distPct: 0.35 },
-      ],
-    },
-  }
+function buildMileageProgression(totalWeeks, planConfig, startMileage, peakMileage) {
+  const phases = planConfig.phases
 
-  // Get the full 7-day template
-  const fullTemplate = templates[raceDistance]?.[phase] || templates.marathon.development
+  // What fraction of peakMileage each phase tops out at
+  const phaseTopPct = { base: 0.75, development: 0.90, peak: 1.0 }
 
-  // If using all 7 days, return as-is
-  if (trainingDays.length === 7) {
-    return fullTemplate
-  }
+  const result = []
+  let prevPhaseTopMiles = startMileage
 
-  // Otherwise, map the template to the specified training days
-  // Strategy:
-  //   - Sunday (day 6) if present → long run, else last day in trainingDays
-  //   - Middle day → quality workout (tempo/interval)
-  //   - First day → recovery
-  //   - Others → easy/GA
+  for (let week = 1; week <= totalWeeks; week++) {
+    const phaseObj = findPhaseForWeek(phases, week)
+    const { name: phase, start: phaseStart, end: phaseEnd } = phaseObj
+    const phaseLen = phaseEnd - phaseStart + 1
+    const weekInPhase = week - phaseStart // 0-indexed
 
-  const mapped = []
-  const hasSunday = trainingDays.includes(6)
-  const longRunDayIdx = hasSunday ? 6 : trainingDays[trainingDays.length - 1]
-  const firstDayIdx = trainingDays[0] // recovery
-  const midIdx = Math.floor(trainingDays.length / 2)
-  const midDayIdx = trainingDays[midIdx] // quality
+    let weekMileage
 
-  for (const dayIdx of trainingDays) {
-    let slot = { day: dayIdx, type: 'easy', distPct: 0.14 }
+    if (phase === 'taper') {
+      // Taper drops sharply: 70% → 50% → 40%
+      const taperPcts = [0.70, 0.50, 0.40]
+      weekMileage = Math.round(peakMileage * (taperPcts[weekInPhase] ?? 0.40))
+    } else {
+      const phaseTopMiles = Math.round(peakMileage * (phaseTopPct[phase] || 0.90))
+      const phaseBottomMiles = prevPhaseTopMiles
 
-    if (dayIdx === longRunDayIdx) {
-      // Long run
-      slot.type = 'long'
-      slot.distPct = 0.40
-    } else if (dayIdx === firstDayIdx) {
-      // Recovery
-      slot.type = 'recovery'
-      slot.distPct = 0.08
-    } else if (dayIdx === midDayIdx) {
-      // Quality workout (tempo or interval depending on phase)
-      if (phase === 'base') {
-        slot.type = 'easy'
-        slot.distPct = 0.13
-      } else if (phase === 'development') {
-        slot.type = 'tempo'
-        slot.distPct = 0.15
-      } else if (phase === 'peak') {
-        slot.type = 'interval'
-        slot.distPct = 0.14
-      } else {
-        slot.type = 'easy'
-        slot.distPct = 0.13
+      // Linear interpolation within the phase
+      const t = phaseLen > 1 ? weekInPhase / (phaseLen - 1) : 1
+      weekMileage = Math.round(phaseBottomMiles + t * (phaseTopMiles - phaseBottomMiles))
+
+      // Cutback week every 3rd week (overall week number)
+      if (week % 3 === 0) {
+        weekMileage = Math.round(weekMileage * 0.80)
+      }
+
+      // Record this phase's top for the next phase's starting point
+      if (week === phaseEnd) {
+        prevPhaseTopMiles = phaseTopMiles
       }
     }
-    mapped.push(slot)
+
+    result.push({
+      week,
+      phase,
+      mileage: Math.max(10, weekMileage),
+      isCutback: phase !== 'taper' && week % 3 === 0,
+    })
   }
 
-  // Normalize distances to sum to 1.0 (approximately)
-  const total = mapped.reduce((s, slot) => s + slot.distPct, 0)
-  const scale = total > 0 ? 1.0 / total : 1.0
-  mapped.forEach(slot => { slot.distPct = Math.round(slot.distPct * scale * 100) / 100 })
+  return result
+}
 
-  return mapped
+// ─── Day schedule templates ───────────────────────────────────────────────────
+// Offsets from Monday (Mon=0, Tue=1, ... Sun=6)
+
+const DAY_SCHEDULES = {
+  3: [0, 3, 6],              // Mon, Thu, Sun
+  4: [0, 2, 5, 6],           // Mon, Wed, Sat, Sun
+  5: [0, 1, 3, 5, 6],        // Mon, Tue, Thu, Sat, Sun
+  6: [0, 1, 2, 4, 5, 6],     // Mon, Tue, Wed, Fri, Sat, Sun
+  7: [0, 1, 2, 3, 4, 5, 6],  // All days
+}
+
+// Long-run distance caps (miles)
+const LONG_RUN_CAPS = { marathon: 22, half: 16, '10k': 13, '5k': 10 }
+
+/**
+ * Determine quality session workout type for a given slot.
+ * slotNum: 0 = first quality session (mid-week), 1 = second quality (late week)
+ */
+function qualityType(raceDistance, phase, slotNum) {
+  if (phase === 'base' || phase === 'taper') return 'easy'
+
+  if (raceDistance === '5k') {
+    return slotNum === 0 ? 'interval' : 'repetition'
+  }
+  if (raceDistance === '10k') {
+    if (phase === 'development') return slotNum === 0 ? 'tempo' : 'interval'
+    return slotNum === 0 ? 'interval' : 'repetition'
+  }
+  // half / marathon
+  if (phase === 'development') return slotNum === 0 ? 'tempo' : 'interval'
+  if (phase === 'peak') return slotNum === 0 ? 'tempo' : 'interval'
+  return 'easy'
 }
 
 /**
- * Generate runs for a single week.
+ * Build a week's run template: array of { dayOffset, type, distance }.
+ * Distances are in whole miles and sum to ~weeklyMileage.
  */
-function generateWeekRuns(
-  weekStartDate,
-  weekTemplate,
-  weeklyMileage,
-  paces,
-  raceDistance,
-  targetRace
-) {
-  const runs = []
+function buildWeekTemplate(raceDistance, phase, daysPerWeek, weeklyMileage) {
+  const clampedDays = Math.max(3, Math.min(7, daysPerWeek))
+  const days = DAY_SCHEDULES[clampedDays] || DAY_SCHEDULES[5]
+  const n = days.length
 
-  for (const slot of weekTemplate) {
-    const runDate = new Date(weekStartDate)
-    runDate.setDate(runDate.getDate() + slot.day)
-    const dateStr = runDate.toISOString().slice(0, 10)
+  // Identify roles:
+  // - Last day (Sun or last in schedule) = long run
+  // - Index 0 = recovery day
+  // - For n >= 4: two quality sessions at indices Math.floor(n/2)-1 and n-2
+  // - For n == 3: one quality session at index 1
+  // - For marathon n >= 6: index 3 = medium-long run (MLR)
 
-    // Calculate and round distance to whole miles (minimum 1)
-    const distance = Math.max(1, Math.round(weeklyMileage * slot.distPct))
+  const longIdx = n - 1
+  const recIdx = 0
 
-    // Generate run data
-    const run = generateRunData(
-      dateStr,
-      slot.type,
-      distance,
-      paces,
-      raceDistance,
-      targetRace
-    )
-
-    if (run) runs.push(run)
+  let qualityIdxs = []
+  if (n >= 4) {
+    const q1 = Math.floor(n / 2) - 1  // ~mid-week quality
+    const q2 = n - 2                   // day before long run
+    qualityIdxs = [q1, q2]
+  } else if (n >= 3) {
+    qualityIdxs = [1] // single quality between recovery and long
   }
 
-  return runs
+  // Medium-long run: marathon plans, 6+ days, index 3
+  const mlrIdx = (raceDistance === 'marathon' && n >= 6) ? 3 : -1
+
+  // Long run: capped per distance
+  const longCap = LONG_RUN_CAPS[raceDistance] || 22
+  const longDist = Math.min(longCap, Math.max(4, Math.round(weeklyMileage * (phase === 'taper' ? 0.28 : 0.34))))
+
+  // MLR: 65% of long run, capped
+  const mlrDist = mlrIdx >= 0
+    ? Math.min(16, Math.max(6, Math.round(longDist * 0.65)))
+    : 0
+
+  // Distribute remaining miles among all other slots using relative weights:
+  // recovery = 0.6, quality = 1.1, easy = 1.0
+  const remaining = weeklyMileage - longDist - mlrDist
+
+  const slotWeights = []
+  for (let i = 0; i < n; i++) {
+    if (i === longIdx) continue
+    if (mlrIdx >= 0 && i === mlrIdx) continue
+    const w = i === recIdx ? 0.6 : qualityIdxs.includes(i) ? 1.1 : 1.0
+    slotWeights.push({ idx: i, w })
+  }
+
+  const totalW = slotWeights.reduce((s, sw) => s + sw.w, 0)
+  const distByIdx = {}
+  for (const { idx, w } of slotWeights) {
+    distByIdx[idx] = Math.max(3, Math.round(remaining * w / totalW))
+  }
+
+  // Build template
+  const template = []
+  let qualSlotNum = 0
+
+  for (let i = 0; i < n; i++) {
+    const dayOffset = days[i]
+    let type, distance
+
+    if (i === longIdx) {
+      type = 'long'; distance = longDist
+    } else if (mlrIdx >= 0 && i === mlrIdx) {
+      type = 'mediumlong'; distance = mlrDist
+    } else if (i === recIdx) {
+      type = 'recovery'; distance = distByIdx[i]
+    } else if (qualityIdxs.includes(i)) {
+      type = qualityType(raceDistance, phase, qualSlotNum)
+      distance = distByIdx[i]
+      qualSlotNum++
+    } else {
+      type = 'easy'; distance = distByIdx[i]
+    }
+
+    template.push({ dayOffset, type, distance: Math.max(1, distance) })
+  }
+
+  return template
 }
 
-/**
- * Generate individual run data.
- */
+// ─── Progressive VDOT ────────────────────────────────────────────────────────
+
+function calculateProgressiveVdots(currentVdot, goalVdot, totalWeeks) {
+  const vdots = []
+  const gap = goalVdot - currentVdot
+  for (let week = 0; week < totalWeeks; week++) {
+    const progress = totalWeeks > 1 ? week / (totalWeeks - 1) : 1
+    vdots.push(Math.round((currentVdot + gap * progress) * 10) / 10)
+  }
+  return vdots
+}
+
+// ─── Run data generation ──────────────────────────────────────────────────────
+
 function generateRunData(date, workoutType, distance, paces, raceDistance, targetRace) {
-  // Format paces using actual VDOT values
-  const easyLo = secToMinSec(paces?.easy?.lo ?? 540)
-  const easyHi = secToMinSec(paces?.easy?.hi ?? 600)
-  const recoveryLo = secToMinSec(paces?.recovery?.lo ?? 600)
-  const recoveryHi = secToMinSec(paces?.recovery?.hi ?? 660)
-  const thresholdPace = secToMinSec(paces?.threshold ?? 390)
-  const intervalPace = secToMinSec(paces?.interval ?? 360)
-  const repetitionPace = secToMinSec(paces?.repetition ?? 330)
-  const marathonPace = secToMinSec(paces?.marathon ?? 450)
+  const easyLo      = secToMinSec(paces?.easy?.lo ?? 540)
+  const easyHi      = secToMinSec(paces?.easy?.hi ?? 600)
+  const recoveryLo  = secToMinSec(paces?.recovery?.lo ?? 600)
+  const recoveryHi  = secToMinSec(paces?.recovery?.hi ?? 660)
+  const threshold   = secToMinSec(paces?.threshold ?? 390)
+  const interval    = secToMinSec(paces?.interval ?? 360)
+  const repetition  = secToMinSec(paces?.repetition ?? 330)
+  const marathon    = secToMinSec(paces?.marathon ?? 450)
 
   const templates = {
     recovery: {
-      notes: `Easy recovery jog at ${recoveryLo}–${recoveryHi}/mi pace. Focus on flushing legs.`,
+      notes: `Easy recovery jog at ${recoveryLo}–${recoveryHi}/mi. Flush the legs, stay relaxed.`,
       targetPace: `${recoveryLo}/mi`,
     },
     easy: {
@@ -513,48 +296,145 @@ function generateRunData(date, workoutType, distance, paces, raceDistance, targe
       targetPace: `${easyLo}/mi`,
     },
     long: {
-      notes: `Long run at easy pace (${easyLo}–${easyHi}/mi). Start conservatively. Last 25% can progress toward marathon pace (${marathonPace}/mi).`,
+      notes: `Long run at easy effort (${easyLo}–${easyHi}/mi). Start conservatively. Last 20–25% can drift toward marathon pace (${marathon}/mi).`,
+      targetPace: `${easyLo}/mi`,
+    },
+    mediumlong: {
+      notes: `Medium-long run at easy effort (${easyLo}–${easyHi}/mi). Build aerobic endurance mid-week.`,
       targetPace: `${easyLo}/mi`,
     },
     tempo: {
-      notes: `Lactate threshold work. 2mi warm-up + 15–25 min at threshold pace (${thresholdPace}/mi) + 2mi cool-down.`,
-      targetPace: thresholdPace,
+      notes: `Lactate threshold work: 2mi warm-up + 20–25 min at threshold pace (${threshold}/mi) + 1.5mi cool-down.`,
+      targetPace: threshold,
       repsCount: null,
       repDistanceMeters: null,
       restSeconds: null,
     },
     interval: {
-      notes: `VO₂max intervals. 2mi warm-up, 5×1000m at ${intervalPace}/mi with 180 sec (3 min) recovery, 2mi cool-down.`,
-      targetPace: intervalPace,
+      notes: `VO₂max intervals: 1.5mi warm-up, 5×1000m at ${interval}/mi with 90–120s jog recovery, 1.5mi cool-down.`,
+      targetPace: interval,
       repsCount: 5,
       repDistanceMeters: 1000,
-      restSeconds: 180,
-    },
-    repetition: {
-      notes: `Speed work. 8×200m at mile pace (${repetitionPace}/mi or faster) with full recovery (2–3 min walk/stand between reps).`,
-      targetPace: repetitionPace,
-      repsCount: 8,
-      repDistanceMeters: 200,
       restSeconds: 120,
     },
+    repetition: {
+      notes: `Speed reps: 8×200m at mile pace (${repetition}/mi or faster) with full 2–3 min walk/stand recovery.`,
+      targetPace: repetition,
+      repsCount: 8,
+      repDistanceMeters: 200,
+      restSeconds: 150,
+    },
     generalspeed: {
-      notes: `Fartlek or hill repeats. Run by feel with variable efforts between easy (${easyLo}/mi) and threshold (${thresholdPace}/mi).`,
-      targetPace: `${easyLo}–${thresholdPace}`,
+      notes: `Fartlek or hill repeats. Run by feel with variable efforts between easy (${easyLo}/mi) and threshold (${threshold}/mi).`,
+      targetPace: `${easyLo}–${threshold}`,
     },
   }
 
-  const template = templates[workoutType]
-  if (!template) return null
+  const tpl = templates[workoutType]
+  if (!tpl) return null
 
   return {
     date,
-    distance: distance, // already rounded to whole mile
-    workoutType,
-    notes: template.notes,
-    targetPace: template.targetPace,
+    distance: Math.max(1, distance),
+    workoutType: workoutType === 'mediumlong' ? 'easy' : workoutType, // store MLR as easy
+    notes: tpl.notes,
+    targetPace: tpl.targetPace,
     targetRace,
-    repsCount: template.repsCount ?? null,
-    repDistanceMeters: template.repDistanceMeters ?? null,
-    restSeconds: template.restSeconds ?? null,
+    repsCount:          tpl.repsCount          ?? null,
+    repDistanceMeters:  tpl.repDistanceMeters  ?? null,
+    restSeconds:        tpl.restSeconds        ?? null,
   }
+}
+
+// ─── Main export ──────────────────────────────────────────────────────────────
+
+/**
+ * Generate a complete training plan.
+ *
+ * @param {Object} config
+ *   raceDistance  - 'marathon' | 'half' | '10k' | '5k'
+ *   raceDate      - 'YYYY-MM-DD'
+ *   currentVdot   - number (e.g. 45.2)
+ *   mileageLevel  - 'beginner' | 'intermediate' | 'advanced'
+ *   daysPerWeek   - 3–7 (default 5)
+ *   startingMileage - optional starting weekly miles override
+ *   peakMileage   - optional peak weekly miles override
+ *   vdotApproach  - 'current' | 'goal' | 'progressive'
+ *   goalVdot      - optional target VDOT for progressive/goal mode
+ * @returns {Array} Array of planned run objects ready to insert into DB
+ */
+export function generatePlan({
+  raceDistance,
+  raceDate,
+  currentVdot,
+  mileageLevel = 'intermediate',
+  daysPerWeek = 5,
+  startingMileage,
+  peakMileage,
+  vdotApproach = 'current',
+  goalVdot,
+}) {
+  if (!raceDistance || !raceDate || !currentVdot) {
+    throw new Error('Missing required plan parameters')
+  }
+
+  // ── Snap plan start to the coming Monday ────────────────────────────────
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const dow = today.getDay() // 0 = Sun, 1 = Mon, ... 6 = Sat
+  // Days until next Monday (0 if today is Monday)
+  const daysToMonday = dow === 1 ? 0 : (1 - dow + 7) % 7
+  const planStart = new Date(today)
+  planStart.setDate(today.getDate() + daysToMonday)
+
+  const raceDateObj = new Date(raceDate + 'T00:00:00')
+  const planConfig = getPlanConfig(raceDistance)
+
+  // Weeks from plan start until race day
+  const weeksToRace = Math.ceil((raceDateObj - planStart) / (7 * 24 * 60 * 60 * 1000))
+  const totalWeeks = Math.min(planConfig.totalWeeks, Math.max(4, weeksToRace))
+
+  // Effective mileage targets
+  const defaultPeak = getDefaultPeak(raceDistance, mileageLevel)
+  const effectivePeak  = peakMileage    || defaultPeak
+  const effectiveStart = startingMileage || Math.round(effectivePeak * 0.65)
+
+  // Per-week mileage progression
+  const mileageWeeks = buildMileageProgression(totalWeeks, planConfig, effectiveStart, effectivePeak)
+
+  // Progressive VDOT array (if applicable)
+  const progressiveVdots = vdotApproach === 'progressive' && totalWeeks > 1
+    ? calculateProgressiveVdots(currentVdot, goalVdot || currentVdot + 5, totalWeeks)
+    : null
+
+  const raceName = `${raceDistance.charAt(0).toUpperCase() + raceDistance.slice(1)} ${raceDateObj.getFullYear()}`
+  const allRuns = []
+
+  for (let week = 1; week <= totalWeeks; week++) {
+    const { phase, mileage: weeklyMileage } = mileageWeeks[week - 1]
+
+    // Week start date (each week is a Monday)
+    const weekStart = new Date(planStart)
+    weekStart.setDate(planStart.getDate() + (week - 1) * 7)
+
+    // Effective VDOT for pacing this week
+    let weekVdot = currentVdot
+    if (vdotApproach === 'goal') weekVdot = goalVdot || currentVdot
+    else if (vdotApproach === 'progressive' && progressiveVdots) weekVdot = progressiveVdots[week - 1]
+    const paces = getTrainingPaces(weekVdot)
+
+    // Build the week's run slots
+    const weekTemplate = buildWeekTemplate(raceDistance, phase, daysPerWeek, weeklyMileage)
+
+    for (const slot of weekTemplate) {
+      const runDate = new Date(weekStart)
+      runDate.setDate(weekStart.getDate() + slot.dayOffset)
+      const dateStr = runDate.toISOString().slice(0, 10)
+
+      const run = generateRunData(dateStr, slot.type, slot.distance, paces, raceDistance, raceName)
+      if (run) allRuns.push(run)
+    }
+  }
+
+  return allRuns
 }

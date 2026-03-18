@@ -13,6 +13,7 @@ function dbPlanToRun(row) {
     notes:            row.notes ?? '',
     targetPace:       row.target_pace ?? '',
     targetRace:       row.target_race ?? '',
+    planId:           row.plan_id ?? null,
   }
 }
 
@@ -41,6 +42,7 @@ export async function insertPlannedRun(userId, run) {
       notes:               run.notes || null,
       target_pace:         run.targetPace || null,
       target_race:         run.targetRace || null,
+      plan_id:             run.planId ?? null,
     })
     .select()
     .single()
