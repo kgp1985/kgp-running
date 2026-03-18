@@ -206,6 +206,33 @@ export const WORKOUT_TYPES = {
       { title: 'Pacing Plan', details: 'Miles 1–3: goal pace or 5 sec/mile slower. Miles 4–20: locked-in goal pace. Miles 20–26: race on feel and grit.', totalDist: '26.2 miles' },
     ],
   },
+
+  generalspeed: {
+    key: 'generalspeed',
+    label: 'General Speed',
+    color: 'indigo',
+    paceZone: 'repetition',
+    description: 'Unstructured speed work that develops raw leg turnover, coordination, and the ability to shift gears mid-run. Unlike formal repetition sessions, general speed work is playful and varied — fartleks, hill bursts, surges, and acceleration drills done by feel rather than pace targets.',
+    purpose: 'Builds fast-twitch muscle fiber recruitment, improves running economy at varied efforts, and teaches your body to handle pace changes without spiking heart rate. A great complement to more structured workouts.',
+    effortLevel: 7,
+    rpe: '6-9 / 10 (varies)',
+    weeklyFrequency: 'Every 7–14 days',
+    durationRange: '30–60 min total',
+    guidelines: [
+      'No pace targets — run these entirely by feel and perceived effort',
+      'Fartlek: Swedish for "speed play" — vary effort freely during a run, surge when inspired',
+      'Hill repeats: short, steep efforts (15–30 sec) at hard effort, walk/jog back down for recovery',
+      'Pick-ups: inject 20–30 sec surges into an otherwise easy run, recover fully between',
+      'These should feel energizing, not exhausting — if you\'re crushed afterwards, you went too hard',
+      'Best placed mid-week, at least 2 days from a long run or hard interval session',
+    ],
+    workoutTemplates: [
+      { title: 'Classic Fartlek', details: '5-min easy warm-up, then 20-30 min of free-form surges: go hard for a lamppost, a hill, a song — whatever feels right. 5-min easy cool-down.', totalDist: '~5-7 miles' },
+      { title: 'Hill Burst Session', details: '20-min easy warm-up, then 8-12 × 20-sec hard uphill bursts with walk-back recovery. 10-min easy cool-down. Choose a moderate grade.', totalDist: '~4-5 miles' },
+      { title: 'Surge Run', details: '10-min easy, then alternating: 3-min at half marathon effort / 2-min easy. Repeat 5-6 times. 5-min easy cool-down.', totalDist: '~6-7 miles' },
+      { title: 'Acceleration Ladder', details: '15-min easy warm-up. On a flat stretch: 100m build / 200m build / 400m build / 200m build / 100m build, with easy jog recovery between. 10-min cool-down.', totalDist: '~4-5 miles' },
+    ],
+  },
 }
 
 export const WORKOUT_TYPE_OPTIONS = Object.values(WORKOUT_TYPES).map(({ key, label, color }) => ({ key, label, color }))
@@ -219,4 +246,5 @@ export const WORKOUT_TYPE_COLORS = {
   red:    { bg: 'bg-red-100',    text: 'text-red-700',    border: 'border-red-200',    dot: 'bg-red-500' },
   purple: { bg: 'bg-purple-100', text: 'text-purple-700', border: 'border-purple-200', dot: 'bg-purple-500' },
   pink:   { bg: 'bg-pink-100',   text: 'text-pink-700',   border: 'border-pink-200',   dot: 'bg-pink-500' },
+  indigo: { bg: 'bg-indigo-100', text: 'text-indigo-700', border: 'border-indigo-200', dot: 'bg-indigo-500' },
 }

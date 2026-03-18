@@ -26,15 +26,16 @@ export function generateWorkouts(workoutTypeKey, vdot) {
   const paces = getTrainingPaces(vdot)
 
   switch (workoutTypeKey) {
-    case 'easy':       return generateEasy(paces)
-    case 'recovery':   return generateRecovery(paces)
-    case 'long':       return generateLong(paces)
-    case 'tempo':      return generateTempo(paces)
-    case 'interval':   return generateInterval(paces)
-    case 'repetition': return generateRepetition(paces)
-    case 'tuneup':     return generateTuneup(paces)
-    case 'keyrace':    return generateKeyRace(paces)
-    default:           return type.workoutTemplates
+    case 'easy':           return generateEasy(paces)
+    case 'recovery':       return generateRecovery(paces)
+    case 'long':           return generateLong(paces)
+    case 'tempo':          return generateTempo(paces)
+    case 'interval':       return generateInterval(paces)
+    case 'repetition':     return generateRepetition(paces)
+    case 'tuneup':         return generateTuneup(paces)
+    case 'keyrace':        return generateKeyRace(paces)
+    case 'generalspeed':   return generateGeneralSpeed(paces)
+    default:               return type.workoutTemplates
   }
 }
 
@@ -272,6 +273,41 @@ function generateKeyRace(paces) {
       details: `Miles 1–3: goal pace (${mpPace}) or 5 sec/mile slower. Miles 4–20: locked-in goal pace (${mpPace}). Mile 20–finish: compete on feel. For half: ${ltPace} effort, even splits.`,
       totalDist: '26.2 miles',
       notes: 'Pfitzinger: a negative split of 1–2 minutes in the second half is the mark of a well-executed marathon. Patience in the first half wins the race.',
+    },
+  ]
+}
+
+// ── General Speed ──────────────────────────────────────────────────────────────
+// Unstructured speed work: fartlek, hill repeats, surges. By feel, not by pace.
+
+function generateGeneralSpeed(paces) {
+  const gaPace  = fmtMiKm(paces.easy.hi)
+  const ltPace  = fmtMiKm(paces.threshold)
+  const rPace   = fmtMiKm(paces.repetition)
+  return [
+    {
+      title: 'Classic Fartlek',
+      details: `Start with 5 min easy at ${gaPace}. For 20–30 min, freely surge between ${gaPace} (easy) and ${ltPace} (threshold) based on feel — a lamppost, a hill, a song on your playlist. No watch pressure. Cool down 5 min easy.`,
+      totalDist: '~5–7 miles',
+      notes: 'No pace targets — run the surges by effort. If you\'re checking your watch constantly, you\'re missing the point of fartlek.',
+    },
+    {
+      title: 'Hill Burst Session',
+      details: `Warm up 20 min at ${gaPace}. Find a moderate hill. Run 8–12 × 20-sec hard uphill bursts at near-sprint effort (faster than ${rPace} feel). Walk back down as full recovery between each. Cool down 10 min easy.`,
+      totalDist: '~4–5 miles',
+      notes: 'Hills build power and running economy simultaneously. The walk-back recovery keeps quality high on every rep.',
+    },
+    {
+      title: 'Surge Run',
+      details: `10 min easy at ${gaPace}. Then 5–6 rounds of: 3 min at half marathon effort (${ltPace}) / 2 min easy at ${gaPace}. Finish with 5 min easy cool-down.`,
+      totalDist: '~6–7 miles',
+      notes: 'The surges teach your body to shift gears mid-run — a skill that pays off in the late miles of any race.',
+    },
+    {
+      title: 'Acceleration Ladder',
+      details: `Warm up 15 min at ${gaPace}. On a flat stretch, run: 100m build to ${rPace} / jog 200m / 200m build to ${rPace} / jog 200m / 400m build to ${rPace} / jog 400m / 200m build / 100m build. Cool down 10 min easy.`,
+      totalDist: '~4–5 miles',
+      notes: 'Each acceleration should peak at full speed feel — controlled but fast. A great session for developing top-end turnover without a track.',
     },
   ]
 }

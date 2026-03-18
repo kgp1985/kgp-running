@@ -72,3 +72,33 @@ export async function insertFitFilePendingRun(userId, parsed) {
   if (error) throw error
   return dbPendingRunToPendingRun(data)
 }
+
+/**
+ * Insert a pending run created from a GPX file upload.
+ * Called client-side after parsing a GPX file.
+ */
+export async function insertGpxPendingRun(userId, parsed) {
+  // parsed = { date, distanceMiles, durationSeconds, elevationGainFeet, heartRate, source: 'gpx' }
+  // Convert miles to meters for storage
+  const distanceMeters = parsed.distanceMiles * 1609.344
+
+  const { data, error } = await supabase
+    .from('pending_runs')
+    .insert({
+      user_id:          userId,
+      provider:         'gpx',
+      external_id:      null,
+      date:             parsed.date,
+      distance_meters:  distanceMeters,
+      duration_seconds: parsed.durationSeconds,
+      heart_rate:           parsed.heartRate ?? null,
+      elevation_gain_feet:  parsed.elevationGainFeet ?? null,
+      status:               'pending',
+      raw_data:             null,
+    })
+    .select()
+    .single()
+
+  if (error) throw error
+  return dbPendingRunToPendingRun(data)
+}

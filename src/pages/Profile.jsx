@@ -406,6 +406,15 @@ export default function Profile() {
           <FitFileUploadInline userId={user?.id} />
         </div>
 
+        {/* ── GPX file upload ── */}
+        <div className="card" id="gpx-upload">
+          <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-1">Upload a .gpx File</h2>
+          <p className="text-xs text-gray-400 mb-4">
+            Works with Garmin, Coros, Strava exports, and any GPS device that exports GPX files.
+          </p>
+          <GpxFileUploadInline userId={user?.id} />
+        </div>
+
         {/* ── Account ── */}
         <div className="card">
           <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4">Account</h2>
@@ -428,7 +437,7 @@ export default function Profile() {
   )
 }
 
-// ── Inline fit file upload (placeholder — replaced by FitFileUpload.jsx below) ─
+// ── Inline fit file upload ─
 
 function FitFileUploadInline({ userId }) {
   const [status, setStatus] = useState(null) // null | 'parsing' | 'done' | 'error'
@@ -514,6 +523,67 @@ function FitFileUploadInline({ userId }) {
             <span className="text-3xl mb-2">📁</span>
             <p className="text-sm font-semibold text-gray-700">Drop a .fit file here or click to choose</p>
             <p className="text-xs text-gray-400 mt-1">Exported from Apple Health, Garmin Connect, Coros app, etc.</p>
+          </>
+        )}
+      </label>
+    </div>
+  )
+}
+
+// ── Inline GPX file upload ─
+
+function GpxFileUploadInline({ userId }) {
+  const [status, setStatus] = useState(null) // null | 'parsing' | 'done' | 'error'
+  const [message, setMessage] = useState('')
+  const fileRef = useRef(null)
+
+  const handleFile = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setStatus('parsing')
+    setMessage('')
+    try {
+      const { parseGpxFile } = await import('../utils/parseGpx.js')
+      const parsed = await parseGpxFile(file)
+
+      const { insertGpxPendingRun } = await import('../api/pendingRunsApi.js')
+      await insertGpxPendingRun(userId, parsed)
+      setStatus('done')
+      setMessage('Run uploaded! It will appear in the watch sync prompt on your Home and Log pages.')
+    } catch (err) {
+      setStatus('error')
+      setMessage(err.message ?? 'Upload failed.')
+    }
+  }
+
+  return (
+    <div>
+      <label
+        className={`flex flex-col items-center justify-center border-2 border-dashed rounded-xl p-6 cursor-pointer transition-colors ${
+          status === 'done' ? 'border-green-300 bg-green-50' :
+          status === 'error' ? 'border-red-300 bg-red-50' :
+          'border-gray-200 hover:border-red-300 hover:bg-gray-50'
+        }`}
+      >
+        <input ref={fileRef} type="file" accept=".gpx" className="hidden" onChange={handleFile} />
+        {status === 'parsing' ? (
+          <p className="text-sm text-gray-500">Parsing file…</p>
+        ) : status === 'done' ? (
+          <>
+            <span className="text-2xl mb-1">✅</span>
+            <p className="text-sm font-medium text-green-700">{message}</p>
+          </>
+        ) : status === 'error' ? (
+          <>
+            <span className="text-2xl mb-1">⚠️</span>
+            <p className="text-sm font-medium text-red-600">{message}</p>
+            <p className="text-xs text-gray-400 mt-1">Try uploading again</p>
+          </>
+        ) : (
+          <>
+            <span className="text-3xl mb-2">🗺️</span>
+            <p className="text-sm font-semibold text-gray-700">Drop a .gpx file here or click to choose</p>
+            <p className="text-xs text-gray-400 mt-1">Exported from Garmin Connect, Coros app, Strava, etc.</p>
           </>
         )}
       </label>

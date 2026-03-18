@@ -5,6 +5,7 @@ import LogFilters from '../features/log/LogFilters.jsx'
 import { useRunningLogDb } from '../hooks/useRunningLogDb.js'
 import { usePersonalRecordsDb } from '../hooks/usePersonalRecordsDb.js'
 import { useProfile } from '../hooks/useProfile.js'
+import { useAuth } from '../context/AuthContext.jsx'
 import { secondsToTimeStr } from '../utils/paceCalc.js'
 import PendingRunBanner from '../features/watch/PendingRunBanner.jsx'
 import { WORKOUT_TYPES, WORKOUT_TYPE_COLORS } from '../data/workoutTypes.js'
@@ -348,6 +349,7 @@ const BORDER_MAP = {
   red:    'border-l-red-500',
   purple: 'border-l-purple-500',
   pink:   'border-l-pink-500',
+  indigo: 'border-l-indigo-500',
 }
 
 function runToFormValues(run) {
@@ -652,9 +654,12 @@ export default function RunningLog() {
   const [editingRun, setEditingRun] = useState(null)
   const [filters, setFilters]       = useState(DEFAULT_FILTERS)
   const [viewMode, setViewMode]     = useState('spinner')
+  const [gpxStatus, setGpxStatus]   = useState(null)
+  const gpxFileRef                  = useRef(null)
   const { runs, addRun, deleteRun, updateRun, loading } = useRunningLogDb()
   const { checkAndUpdatePR } = usePersonalRecordsDb()
   const { profile } = useProfile()
+  const { user } = useAuth()
 
   const handleAddRun = async (runData) => {
     const newRun = await addRun(runData)
@@ -665,6 +670,24 @@ export default function RunningLog() {
   const handleUpdateRun = async (runData) => {
     await updateRun(editingRun.id, runData)
     setEditingRun(null)
+  }
+
+  const handleGpxUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file || !user) return
+    setGpxStatus('parsing')
+    try {
+      const { parseGpxFile } = await import('../utils/parseGpx.js')
+      const parsed = await parseGpxFile(file)
+      const { insertGpxPendingRun } = await import('../api/pendingRunsApi.js')
+      await insertGpxPendingRun(user.id, parsed)
+      setGpxStatus('done')
+      setTimeout(() => setGpxStatus(null), 3000)
+    } catch (err) {
+      setGpxStatus('error')
+      console.error('GPX upload error:', err)
+    }
+    gpxFileRef.current.value = ''
   }
 
   const filtered = runs
@@ -717,15 +740,27 @@ export default function RunningLog() {
             <ViewToggle view={viewMode} onChange={setViewMode} />
           )}
         </div>
-        <button
-          className="btn-primary flex items-center gap-2"
-          onClick={() => setShowForm(s => !s)}
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          {showForm ? 'Cancel' : 'Log Run'}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            className="flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors"
+            onClick={() => gpxFileRef.current?.click()}
+            disabled={gpxStatus === 'parsing'}
+            title="Upload GPX file"
+          >
+            <span className="text-base">🗺️</span>
+            {gpxStatus === 'parsing' ? 'Uploading…' : gpxStatus === 'done' ? 'Uploaded!' : gpxStatus === 'error' ? 'Error' : 'GPX'}
+          </button>
+          <input ref={gpxFileRef} type="file" accept=".gpx" className="hidden" onChange={handleGpxUpload} />
+          <button
+            className="btn-primary flex items-center gap-2"
+            onClick={() => setShowForm(s => !s)}
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            {showForm ? 'Cancel' : 'Log Run'}
+          </button>
+        </div>
       </div>
 
       {/* Year in Miles */}
