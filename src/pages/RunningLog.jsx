@@ -132,6 +132,213 @@ function ClassicList({ runs, onEdit, onDelete }) {
   )
 }
 
+// ── YearInMiles ────────────────────────────────────────────────────────────────
+
+const MONTH_LABELS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+const GOAL_KEY = 'kgp_annual_mile_goal'
+
+function YearInMiles({ runs }) {
+  const [goal, setGoal] = useState(() => {
+    const saved = localStorage.getItem(GOAL_KEY)
+    return saved ? parseInt(saved) : 1000
+  })
+  const [editingGoal, setEditingGoal] = useState(false)
+  const [goalInput, setGoalInput] = useState('')
+
+  const year = new Date().getFullYear()
+  const currentMonth = new Date().getMonth() // 0-indexed
+
+  const yearRuns = runs.filter(r => r.date.startsWith(String(year)))
+  const totalMiles = yearRuns.reduce((s, r) =>
+    s + (r.distanceUnit === 'km' ? r.distance / 1.60934 : r.distance), 0)
+  const progress = Math.min(1, totalMiles / goal)
+  const pct = Math.round(progress * 100)
+
+  const months = MONTH_LABELS.map((label, i) => {
+    const monthStr = String(i + 1).padStart(2, '0')
+    const miles = yearRuns
+      .filter(r => r.date.startsWith(`${year}-${monthStr}`))
+      .reduce((s, r) => s + (r.distanceUnit === 'km' ? r.distance / 1.60934 : r.distance), 0)
+    return { label, miles, isCurrent: i === currentMonth, isFuture: i > currentMonth }
+  })
+  const maxMiles = Math.max(...months.map(m => m.miles), 1)
+
+  const saveGoal = () => {
+    const val = parseInt(goalInput)
+    if (val > 0) {
+      setGoal(val)
+      localStorage.setItem(GOAL_KEY, String(val))
+    }
+    setEditingGoal(false)
+  }
+
+  // SVG arc — 180° semicircle
+  const R = 76
+  const cx = 100, cy = 92
+  const arcLen = Math.PI * R // half circumference
+  const dashOffset = arcLen * (1 - progress)
+  const milesLeft = Math.max(0, goal - totalMiles)
+
+  return (
+    <div className="bg-zinc-950 rounded-2xl p-6 mb-8">
+      <div className="flex flex-col sm:flex-row gap-8 items-center">
+
+        {/* ── Arc gauge ── */}
+        <div className="flex-shrink-0 flex flex-col items-center">
+          <svg width="200" height="114" viewBox="0 0 200 114" className="overflow-visible">
+            {/* Track */}
+            <path
+              d={`M ${cx - R},${cy} A ${R},${R} 0 0,1 ${cx + R},${cy}`}
+              fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="14" strokeLinecap="round"
+            />
+            {/* Progress */}
+            <path
+              d={`M ${cx - R},${cy} A ${R},${R} 0 0,1 ${cx + R},${cy}`}
+              fill="none" stroke="#EF4444" strokeWidth="14" strokeLinecap="round"
+              strokeDasharray={arcLen} strokeDashoffset={dashOffset}
+              style={{ transition: 'stroke-dashoffset 1.2s cubic-bezier(0.25,0.46,0.45,0.94)' }}
+            />
+            {/* Tick marks at 25% intervals */}
+            {[0.25, 0.5, 0.75].map(t => {
+              const angle = Math.PI * (1 - t) // 180° to 0°
+              const x1 = cx + (R - 8) * Math.cos(angle)
+              const y1 = cy - (R - 8) * Math.sin(angle)
+              const x2 = cx + (R + 2) * Math.cos(angle)
+              const y2 = cy - (R + 2) * Math.sin(angle)
+              return <line key={t} x1={x1} y1={y1} x2={x2} y2={y2} stroke="rgba(255,255,255,0.15)" strokeWidth="1.5" />
+            })}
+            {/* Miles number */}
+            <text x={cx} y={cy - 22} textAnchor="middle" fill="white"
+              fontSize="30" fontWeight="900" fontFamily="system-ui, sans-serif" letterSpacing="-1">
+              {Math.round(totalMiles).toLocaleString()}
+            </text>
+            <text x={cx} y={cy - 5} textAnchor="middle" fill="rgba(255,255,255,0.35)"
+              fontSize="10" fontFamily="system-ui, sans-serif">
+              miles in {year}
+            </text>
+            {/* End labels */}
+            <text x={cx - R - 2} y={cy + 16} textAnchor="middle" fill="rgba(255,255,255,0.2)"
+              fontSize="9" fontFamily="system-ui, sans-serif">0</text>
+            <text x={cx + R + 2} y={cy + 16} textAnchor="middle" fill="rgba(255,255,255,0.2)"
+              fontSize="9" fontFamily="system-ui, sans-serif">{goal.toLocaleString()}</text>
+          </svg>
+
+          {/* Progress pill + goal edit */}
+          <div className="flex items-center gap-2 mt-1">
+            <span className={`text-xs font-black px-2 py-0.5 rounded-full ${
+              pct >= 100 ? 'bg-red-500 text-white' : 'bg-zinc-800 text-zinc-300'
+            }`}>{pct}%</span>
+            {progress < 1 && (
+              <span className="text-xs text-zinc-600">{Math.round(milesLeft)} mi to go</span>
+            )}
+            {progress >= 1 && (
+              <span className="text-xs text-red-400 font-bold">Goal crushed 🔥</span>
+            )}
+          </div>
+
+          {/* Goal setter */}
+          <div className="mt-2">
+            {editingGoal ? (
+              <div className="flex items-center gap-2">
+                <input
+                  autoFocus
+                  type="number"
+                  value={goalInput}
+                  onChange={e => setGoalInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') saveGoal(); if (e.key === 'Escape') setEditingGoal(false) }}
+                  className="w-24 bg-zinc-800 text-white text-xs text-center rounded-lg px-2 py-1.5 border border-zinc-600 focus:border-red-500 focus:outline-none"
+                  placeholder={String(goal)}
+                />
+                <button onClick={saveGoal} className="text-xs font-semibold text-red-400 hover:text-red-300 transition-colors">Set</button>
+                <button onClick={() => setEditingGoal(false)} className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors">✕</button>
+              </div>
+            ) : (
+              <button
+                onClick={() => { setGoalInput(String(goal)); setEditingGoal(true) }}
+                className="text-[11px] text-zinc-700 hover:text-zinc-400 transition-colors flex items-center gap-1"
+              >
+                <svg className="w-3 h-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8">
+                  <path d="M11.5 2.5l2 2-8 8H3.5v-2l8-8z" />
+                </svg>
+                Goal: {goal.toLocaleString()} mi
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* ── Monthly bars ── */}
+        <div className="flex-1 w-full min-w-0">
+          <p className="text-[10px] font-black uppercase tracking-widest text-zinc-600 mb-4">
+            {year} · Month by Month
+          </p>
+          <div className="flex items-end gap-1" style={{ height: '88px' }}>
+            {months.map(({ label, miles, isCurrent, isFuture }) => {
+              const barH = isFuture ? 0 : (miles / maxMiles) * 72
+              return (
+                <div key={label} className="flex-1 flex flex-col items-center gap-1">
+                  {/* Miles label above bar */}
+                  <div className="flex-1 flex items-end justify-center w-full">
+                    <div className="w-full flex flex-col items-center justify-end" style={{ height: '72px' }}>
+                      {miles > 0 && !isFuture && (
+                        <span className={`text-[8px] mb-0.5 leading-none tabular-nums ${isCurrent ? 'text-red-400' : 'text-zinc-600'}`}>
+                          {Math.round(miles)}
+                        </span>
+                      )}
+                      <div
+                        className={`w-full rounded-t-sm transition-all duration-700 ${
+                          isCurrent ? 'bg-red-500' :
+                          isFuture  ? 'bg-zinc-900' :
+                                      'bg-zinc-700 hover:bg-zinc-500'
+                        }`}
+                        style={{ height: `${Math.max(barH, isFuture ? 0 : miles > 0 ? 3 : 0)}px` }}
+                      />
+                    </div>
+                  </div>
+                  {/* Month label */}
+                  <span className={`text-[9px] font-bold leading-none ${isCurrent ? 'text-red-400' : 'text-zinc-700'}`}>
+                    {label}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Pace stat footer */}
+          {yearRuns.length > 0 && (
+            <div className="flex gap-6 mt-4 pt-4 border-t border-zinc-900">
+              <div>
+                <p className="text-[9px] uppercase tracking-widest text-zinc-700 font-semibold">Runs</p>
+                <p className="text-sm font-black text-zinc-300">{yearRuns.length}</p>
+              </div>
+              <div>
+                <p className="text-[9px] uppercase tracking-widest text-zinc-700 font-semibold">Avg / Run</p>
+                <p className="text-sm font-black text-zinc-300">{(totalMiles / yearRuns.length).toFixed(1)} mi</p>
+              </div>
+              <div>
+                <p className="text-[9px] uppercase tracking-widest text-zinc-700 font-semibold">Pace to Goal</p>
+                <p className="text-sm font-black text-zinc-300">
+                  {(() => {
+                    const daysLeft = Math.max(1, Math.ceil((new Date(`${year}-12-31`) - new Date()) / 86400000))
+                    const weeksLeft = daysLeft / 7
+                    const milesPerWeek = milesLeft / weeksLeft
+                    return milesLeft > 0 ? `${milesPerWeek.toFixed(1)} mi/wk` : '—'
+                  })()}
+                </p>
+              </div>
+              <div>
+                <p className="text-[9px] uppercase tracking-widest text-zinc-700 font-semibold">Best Month</p>
+                <p className="text-sm font-black text-zinc-300">
+                  {months.reduce((best, m) => m.miles > best.miles ? m : best, months[0]).label}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 const BORDER_MAP = {
   green:  'border-l-green-500',
   blue:   'border-l-blue-500',
@@ -520,6 +727,9 @@ export default function RunningLog() {
           {showForm ? 'Cancel' : 'Log Run'}
         </button>
       </div>
+
+      {/* Year in Miles */}
+      {runs.length > 0 && <YearInMiles runs={runs} />}
 
       {/* Log form */}
       {showForm && (
