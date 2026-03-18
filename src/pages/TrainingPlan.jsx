@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import PageWrapper from '../components/layout/PageWrapper.jsx'
 import PlannedRunForm from '../features/plan/PlannedRunForm.jsx'
 import RunForm from '../features/log/RunForm.jsx'
@@ -11,6 +11,18 @@ import { useAuth } from '../context/AuthContext.jsx'
 import { calculateCurrentVDOT, calculateVDOT, getTrainingPaces } from '../utils/vdot.js'
 import { generatePlan } from '../utils/planGenerator.js'
 import { WORKOUT_TYPES, WORKOUT_TYPE_COLORS } from '../data/workoutTypes.js'
+
+// ─ Scroll arrow component ─
+function ScrollArrow() {
+  return (
+    <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 animate-bounce">
+      <span className="text-xs text-white/40 tracking-widest uppercase">scroll</span>
+      <svg className="w-5 h-5 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 9l-7 7-7-7" />
+      </svg>
+    </div>
+  )
+}
 
 function formatRestLabel(secs) {
   if (!secs) return ''
@@ -28,7 +40,7 @@ function RepsBadge({ run }) {
   )
 }
 
-function PlannedRunCard({ run, onDelete, onMarkDone }) {
+function PlannedRunCard({ run, onDelete, onMarkDone, onEdit }) {
   const type = WORKOUT_TYPES[run.workoutType]
   const colors = WORKOUT_TYPE_COLORS[type?.color ?? 'green']
   const isToday = run.date === new Date().toISOString().slice(0, 10)
@@ -72,6 +84,14 @@ function PlannedRunCard({ run, onDelete, onMarkDone }) {
         >
           ✓ Mark as Done
         </button>
+        {onEdit && (
+          <button
+            onClick={() => onEdit(run)}
+            className="text-xs bg-gray-100 text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+          >
+            Edit
+          </button>
+        )}
         <button
           onClick={() => onDelete(run.id)}
           className="text-xs text-gray-400 hover:text-red-500 transition-colors px-2 py-1.5"
@@ -118,46 +138,87 @@ function weekStats(runs) {
 // Landing Page
 // ─────────────────────────────────────────────────────────────────────────────
 
-function LandingPage({ plannedRuns, upcomingRuns, loading, onAddPlan, onMarkDone, onDelete, onCreatePlan, markDoneRun, setMarkDoneRun, showForm, setShowForm }) {
+function LandingPage({ plannedRuns, upcomingRuns, loading, onAddPlan, onMarkDone, onDelete, onEdit, onCreatePlan, markDoneRun, setMarkDoneRun, showForm, setShowForm }) {
+  const planRef = useRef(null)
   const weekGroups = groupByWeek(plannedRuns)
+  const today = new Date().toISOString().slice(0, 10)
+  const thisWeekStart = new Date()
+  const thisWeekEnd = new Date()
+  thisWeekEnd.setDate(thisWeekEnd.getDate() + 6)
+  const thisWeekEndStr = thisWeekEnd.toISOString().slice(0, 10)
+
+  const thisWeekRuns = plannedRuns.filter(r => r.date >= today && r.date <= thisWeekEndStr)
+  const upcomingPlannedRuns = plannedRuns.filter(r => r.date > thisWeekEndStr)
+  const pastRuns = plannedRuns.filter(r => r.date < today)
+
+  const handleScrollToView = () => {
+    planRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
 
   return (
     <>
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <p className="text-sm text-gray-500">
-            {upcomingRuns.length} upcoming run{upcomingRuns.length !== 1 ? 's' : ''} planned
-          </p>
-        </div>
-        <div className="flex gap-3">
-          <button
-            className="btn-primary flex items-center gap-2"
-            onClick={onCreatePlan}
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Create Plan
-          </button>
-          <button
-            className="btn-primary flex items-center gap-2"
-            onClick={() => setShowForm(s => !s)}
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            {showForm ? 'Cancel' : 'Add Run'}
-          </button>
-        </div>
-      </div>
+      {/* ─ Hero Section ─ */}
+      {plannedRuns.length === 0 ? (
+        <section className="relative min-h-[55vh] flex items-center justify-center overflow-hidden bg-black">
+          <img
+            src="https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?auto=format&fit=crop&w=1920&q=80"
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover object-center opacity-40"
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black/70" />
 
-      {showForm && (
-        <div className="card mb-6">
-          <h2 className="text-base font-semibold text-gray-900 mb-4">Plan a Run</h2>
-          <PlannedRunForm onSubmit={onAddPlan} onCancel={() => setShowForm(false)} />
-        </div>
+          <div className="relative z-10 text-center px-4">
+            <p className="text-xs font-bold tracking-[0.25em] uppercase text-red-500 mb-4">Training Plan</p>
+            <h1 className="font-black text-5xl sm:text-7xl text-white mb-3 leading-tight">The Road Ahead</h1>
+            <p className="text-base text-white/60 mb-8">Every great race starts with a plan.</p>
+            <button
+              onClick={onCreatePlan}
+              className="inline-block bg-white text-black font-bold px-8 py-3 rounded-xl hover:bg-gray-100 transition-colors"
+            >
+              Start by Creating Your Training Plan
+            </button>
+          </div>
+        </section>
+      ) : (
+        <section className="relative min-h-[55vh] flex items-center justify-center overflow-hidden bg-black">
+          <img
+            src="https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?auto=format&fit=crop&w=1920&q=80"
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover object-center opacity-40"
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black/70" />
+
+          <div className="relative z-10 text-center px-4">
+            <p className="text-xs font-bold tracking-[0.25em] uppercase text-red-500 mb-4">Training Plan</p>
+            <h1 className="font-black text-5xl sm:text-7xl text-white mb-3 leading-tight">The Road Ahead</h1>
+            <p className="text-base text-white/60 mb-8">Every great race starts with a plan.</p>
+            <div className="flex flex-wrap gap-4 justify-center">
+              <button
+                onClick={onCreatePlan}
+                className="bg-white text-black font-bold px-6 py-3 rounded-xl hover:bg-gray-100 transition-colors"
+              >
+                Create a Plan
+              </button>
+              <button
+                onClick={() => setShowForm(!showForm)}
+                className="border-2 border-white text-white font-bold px-6 py-3 rounded-xl hover:bg-white/10 transition-colors"
+              >
+                Add a Workout
+              </button>
+              <button
+                onClick={handleScrollToView}
+                className="border-2 border-white/40 text-white/40 font-bold px-6 py-3 rounded-xl hover:border-white/60 hover:text-white/60 transition-colors"
+              >
+                View My Plan
+              </button>
+            </div>
+          </div>
+
+          <ScrollArrow />
+        </section>
       )}
 
+      {/* ─ Mark Done Modal ─ */}
       {markDoneRun && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6">
@@ -180,48 +241,115 @@ function LandingPage({ plannedRuns, upcomingRuns, loading, onAddPlan, onMarkDone
         </div>
       )}
 
-      {loading ? (
-        <p className="text-sm text-gray-400 text-center py-16">Loading your plan...</p>
-      ) : plannedRuns.length === 0 ? (
-        <div className="card text-center py-16 text-gray-400">
-          <p className="text-4xl mb-3">📅</p>
-          <p className="text-sm font-medium text-gray-500">No runs planned yet.</p>
-          <p className="text-xs mt-1">Add your first planned run or generate a plan to get started!</p>
-        </div>
-      ) : (
-        <div className="space-y-8">
-          {weekGroups.map(({ monday, runs }) => {
-            const { total, typeCounts } = weekStats(runs)
-            return (
-              <div key={monday.toISOString()}>
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold text-gray-700">{weekLabel(monday)}</h3>
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs text-gray-400">{total.toFixed(1)} mi planned</span>
-                    <div className="flex gap-1 flex-wrap justify-end">
-                      {Object.entries(typeCounts).map(([label, count]) => (
-                        <span key={label} className="text-xs bg-gray-100 text-gray-500 rounded-full px-2 py-0.5">
-                          {count} {label}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
+      {/* ─ Content ─ */}
+      <div className="bg-white">
+        <div className="max-w-5xl mx-auto px-4 py-16 space-y-16">
+
+          {/* Add Workout Form */}
+          {showForm && (
+            <div className="card">
+              <h2 className="text-base font-semibold text-gray-900 mb-4">Plan a Run</h2>
+              <PlannedRunForm onSubmit={onAddPlan} onCancel={() => setShowForm(false)} />
+            </div>
+          )}
+
+          {/* Loading state */}
+          {loading && (
+            <p className="text-sm text-gray-400 text-center py-16">Loading your plan...</p>
+          )}
+
+          {/* This Week Section */}
+          {!loading && plannedRuns.length > 0 && (
+            <div className="space-y-4">
+              <p className="text-xs font-bold tracking-[0.2em] uppercase text-red-500">This Week</p>
+              {thisWeekRuns.length === 0 ? (
+                <div className="bg-zinc-950 rounded-2xl p-6 text-center">
+                  <p className="text-sm text-zinc-400">Nothing planned yet — add a workout or create a plan.</p>
                 </div>
+              ) : (
                 <div className="space-y-3">
-                  {runs.map(run => (
+                  {thisWeekRuns.map(run => (
                     <PlannedRunCard
                       key={run.id}
                       run={run}
                       onDelete={onDelete}
                       onMarkDone={(r) => setMarkDoneRun(r)}
+                      onEdit={onEdit}
                     />
                   ))}
                 </div>
-              </div>
-            )
-          })}
+              )}
+            </div>
+          )}
+
+          {/* Plan Section */}
+          <div ref={planRef} className="space-y-8">
+            {!loading && plannedRuns.length > 0 && (
+              <>
+                {/* Upcoming sections */}
+                {upcomingPlannedRuns.length > 0 && (
+                  <div>
+                    <p className="text-xs font-bold tracking-[0.2em] uppercase text-red-500 mb-4">Upcoming</p>
+                    {groupByWeek(upcomingPlannedRuns).map(({ monday, runs }) => {
+                      const { total, typeCounts } = weekStats(runs)
+                      return (
+                        <div key={monday.toISOString()} className="mb-6">
+                          <div className="flex items-center justify-between mb-3 bg-zinc-900 rounded-xl px-4 py-3">
+                            <h3 className="text-sm font-semibold text-zinc-100">{weekLabel(monday)}</h3>
+                            <div className="flex items-center gap-3">
+                              <span className="text-xs text-zinc-400">{Math.round(total)} mi</span>
+                              <div className="flex gap-1">
+                                {Object.entries(typeCounts).map(([label, count]) => (
+                                  <span key={label} className="text-xs bg-zinc-800 text-zinc-300 rounded-full px-2 py-0.5">
+                                    {count}x
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="space-y-3">
+                            {runs.map(run => (
+                              <PlannedRunCard
+                                key={run.id}
+                                run={run}
+                                onDelete={onDelete}
+                                onMarkDone={(r) => setMarkDoneRun(r)}
+                                onEdit={onEdit}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+
+                {/* Past runs collapsed section */}
+                {pastRuns.length > 0 && (
+                  <div>
+                    <details className="space-y-3">
+                      <summary className="cursor-pointer text-xs font-semibold tracking-[0.2em] uppercase text-zinc-500 hover:text-zinc-400">
+                        {pastRuns.length} Past Run{pastRuns.length !== 1 ? 's' : ''}
+                      </summary>
+                      <div className="space-y-3">
+                        {pastRuns.map(run => (
+                          <PlannedRunCard
+                            key={run.id}
+                            run={run}
+                            onDelete={onDelete}
+                            onMarkDone={(r) => setMarkDoneRun(r)}
+                            onEdit={onEdit}
+                          />
+                        ))}
+                      </div>
+                    </details>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </div>
-      )}
+      </div>
     </>
   )
 }
@@ -444,7 +572,7 @@ function Step2RaceGoals({ data, setData, upcomingRaces, raceDistances }) {
         <label className="flex items-center gap-2 cursor-pointer">
           <input
             type="checkbox"
-            checked={data.saveToProfile || true}
+            checked={data.saveToProfile !== false}
             onChange={(e) => setData({ ...data, saveToProfile: e.target.checked })}
             className="w-4 h-4"
           />
@@ -834,7 +962,7 @@ function Step5PreviewGenerate({ data, runs, prs }) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function TrainingPlan() {
-  const { plannedRuns, upcomingRuns, loading, addPlannedRun, removePlannedRun } = usePlannedRunsDb()
+  const { plannedRuns, upcomingRuns, loading, addPlannedRun, removePlannedRun, editPlannedRun } = usePlannedRunsDb()
   const { runs } = useRunningLogDb()
   const { addRun } = useRunningLogDb()
   const { prs, checkAndUpdatePR } = usePersonalRecordsDb()
@@ -844,6 +972,7 @@ export default function TrainingPlan() {
 
   const [showForm, setShowForm] = useState(false)
   const [markDoneRun, setMarkDoneRun] = useState(null)
+  const [editingPlanned, setEditingPlanned] = useState(null)
   const [wizardOpen, setWizardOpen] = useState(false)
   const [wizardStep, setWizardStep] = useState(1)
   const [wizardData, setWizardData] = useState({
@@ -851,6 +980,7 @@ export default function TrainingPlan() {
     coachStyle: 'balanced',
     daysPerWeek: 5,
     vdotApproach: 'progressive',
+    saveToProfile: true,
   })
   const [generating, setGenerating] = useState(false)
 
@@ -866,6 +996,12 @@ export default function TrainingPlan() {
     setMarkDoneRun(null)
   }
 
+  const handleEditPlanned = async (runData) => {
+    if (!editingPlanned) return
+    await editPlannedRun(editingPlanned.id, runData)
+    setEditingPlanned(null)
+  }
+
   const openWizard = () => {
     setWizardStep(1)
     setWizardData({
@@ -873,6 +1009,7 @@ export default function TrainingPlan() {
       coachStyle: 'balanced',
       daysPerWeek: 5,
       vdotApproach: 'progressive',
+      saveToProfile: true,
     })
     setWizardOpen(true)
   }
@@ -895,19 +1032,21 @@ export default function TrainingPlan() {
     setGenerating(true)
 
     try {
-      // Save goal and race if needed
-      if (wizardData.saveToProfile && wizardData.goalTime && wizardData.raceDistance) {
-        const goalVdot = parseFloat(estimateVdotFromGoalTime(wizardData.goalTime, wizardData.raceDistance))
-        await setGoal(goalVdot, wizardData.raceDistance, wizardData.goalTime)
-      }
+      // Save goal and race only if saveToProfile is true
+      if (wizardData.saveToProfile) {
+        if (wizardData.goalTime && wizardData.raceDistance) {
+          const goalVdot = parseFloat(estimateVdotFromGoalTime(wizardData.goalTime, wizardData.raceDistance))
+          await setGoal(goalVdot, wizardData.raceDistance, wizardData.goalTime)
+        }
 
-      if (wizardData.newRaceAdded && wizardData.raceName && wizardData.raceDate && wizardData.raceDistance) {
-        await addRace({
-          name: wizardData.raceName,
-          date: wizardData.raceDate,
-          eventType: wizardData.raceDistance,
-          notes: '',
-        })
+        if (wizardData.newRaceAdded && wizardData.raceName && wizardData.raceDate && wizardData.raceDistance) {
+          await addRace({
+            name: wizardData.raceName,
+            date: wizardData.raceDate,
+            eventType: wizardData.raceDistance,
+            notes: '',
+          })
+        }
       }
 
       // If user entered a recent race for VDOT
@@ -989,11 +1128,7 @@ export default function TrainingPlan() {
   }
 
   return (
-    <PageWrapper>
-      <div className="mb-6">
-        <h1 className="text-3xl font-black text-gray-900 mb-4">Training Plan</h1>
-      </div>
-
+    <div className="bg-white">
       <LandingPage
         plannedRuns={plannedRuns}
         upcomingRuns={upcomingRuns}
@@ -1001,12 +1136,41 @@ export default function TrainingPlan() {
         onAddPlan={handleAddPlan}
         onMarkDone={handleMarkDone}
         onDelete={removePlannedRun}
+        onEdit={(run) => setEditingPlanned(run)}
         onCreatePlan={openWizard}
         markDoneRun={markDoneRun}
         setMarkDoneRun={setMarkDoneRun}
         showForm={showForm}
         setShowForm={setShowForm}
       />
+
+      {/* Edit Modal */}
+      {editingPlanned && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Edit Planned Run</h2>
+            <p className="text-sm text-gray-500 mb-4">
+              Update the details for this planned run.
+            </p>
+            <PlannedRunForm
+              onSubmit={handleEditPlanned}
+              onCancel={() => setEditingPlanned(null)}
+              initialValues={{
+                date:             editingPlanned.date,
+                distance:         editingPlanned.distance.toString(),
+                workoutType:      editingPlanned.workoutType,
+                notes:            editingPlanned.notes,
+                targetPace:       editingPlanned.targetPace,
+                targetRace:       editingPlanned.targetRace,
+                hasReps:          !!editingPlanned.repsCount,
+                repsCount:        editingPlanned.repsCount?.toString() || '',
+                repDistanceMeters:editingPlanned.repDistanceMeters?.toString() || '',
+                restSeconds:      editingPlanned.restSeconds || 90,
+              }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Wizard Modal */}
       {wizardOpen && (
@@ -1059,6 +1223,6 @@ export default function TrainingPlan() {
           </div>
         </div>
       )}
-    </PageWrapper>
+    </div>
   )
 }

@@ -6,6 +6,15 @@
 import { getTrainingPaces } from './vdot.js'
 
 /**
+ * Convert seconds to M:SS format.
+ */
+function secToMinSec(secs) {
+  const m = Math.floor(secs / 60)
+  const s = Math.round(secs % 60)
+  return `${m}:${String(s).padStart(2, '0')}`
+}
+
+/**
  * Generate a complete training plan.
  * @param {Object} config
  *   - raceDistance: 'marathon' | 'half' | '10k' | '5k'
@@ -393,13 +402,14 @@ function getWeekTemplate(raceDistance, phase, week, totalWeeks, trainingDays = [
 
   // Otherwise, map the template to the specified training days
   // Strategy:
-  //   - Last day in trainingDays → long run
+  //   - Sunday (day 6) if present → long run, else last day in trainingDays
   //   - Middle day → quality workout (tempo/interval)
   //   - First day → recovery
   //   - Others → easy/GA
 
   const mapped = []
-  const lastDayIdx = trainingDays[trainingDays.length - 1] // long run
+  const hasSunday = trainingDays.includes(6)
+  const longRunDayIdx = hasSunday ? 6 : trainingDays[trainingDays.length - 1]
   const firstDayIdx = trainingDays[0] // recovery
   const midIdx = Math.floor(trainingDays.length / 2)
   const midDayIdx = trainingDays[midIdx] // quality
@@ -407,7 +417,7 @@ function getWeekTemplate(raceDistance, phase, week, totalWeeks, trainingDays = [
   for (const dayIdx of trainingDays) {
     let slot = { day: dayIdx, type: 'easy', distPct: 0.14 }
 
-    if (dayIdx === lastDayIdx) {
+    if (dayIdx === longRunDayIdx) {
       // Long run
       slot.type = 'long'
       slot.distPct = 0.40
@@ -460,7 +470,8 @@ function generateWeekRuns(
     runDate.setDate(runDate.getDate() + slot.day)
     const dateStr = runDate.toISOString().slice(0, 10)
 
-    const distance = parseFloat((weeklyMileage * slot.distPct).toFixed(1))
+    // Calculate and round distance to whole miles (minimum 1)
+    const distance = Math.max(1, Math.round(weeklyMileage * slot.distPct))
 
     // Generate run data
     const run = generateRunData(
@@ -482,47 +493,53 @@ function generateWeekRuns(
  * Generate individual run data.
  */
 function generateRunData(date, workoutType, distance, paces, raceDistance, targetRace) {
-  const marathonPace = paces?.marathon ? `${Math.floor(paces.marathon / 60)}:${String(paces.marathon % 60).padStart(2, '0')}` : '7:30'
-  const thresholdPace = paces?.threshold ? `${Math.floor(paces.threshold / 60)}:${String(paces.threshold % 60).padStart(2, '0')}` : '6:30'
-  const intervalPace = paces?.interval ? `${Math.floor(paces.interval / 60)}:${String(paces.interval % 60).padStart(2, '0')}` : '6:00'
+  // Format paces using actual VDOT values
+  const easyLo = secToMinSec(paces?.easy?.lo ?? 540)
+  const easyHi = secToMinSec(paces?.easy?.hi ?? 600)
+  const recoveryLo = secToMinSec(paces?.recovery?.lo ?? 600)
+  const recoveryHi = secToMinSec(paces?.recovery?.hi ?? 660)
+  const thresholdPace = secToMinSec(paces?.threshold ?? 390)
+  const intervalPace = secToMinSec(paces?.interval ?? 360)
+  const repetitionPace = secToMinSec(paces?.repetition ?? 330)
+  const marathonPace = secToMinSec(paces?.marathon ?? 450)
 
   const templates = {
     recovery: {
-      notes: `Easy recovery jog at ${marathonPace}+90-150sec/mile pace. Focus on flushing legs.`,
-      targetPace: `${marathonPace}+90s/mi`,
+      notes: `Easy recovery jog at ${recoveryLo}–${recoveryHi}/mi pace. Focus on flushing legs.`,
+      targetPace: `${recoveryLo}/mi`,
     },
     easy: {
-      notes: `General aerobic run. Comfortable effort, ${marathonPace}+60-90sec/mile.`,
-      targetPace: `${marathonPace}+60s/mi`,
+      notes: `General aerobic run at ${easyLo}–${easyHi}/mi. Conversational, comfortable effort.`,
+      targetPace: `${easyLo}/mi`,
     },
     long: {
-      notes: `Long run at easy pace. Start conservatively at ${marathonPace}+60sec/mile. Last 25% can progress toward goal pace.`,
-      targetPace: `${marathonPace}+60s/mi`,
+      notes: `Long run at easy pace (${easyLo}–${easyHi}/mi). Start conservatively. Last 25% can progress toward marathon pace (${marathonPace}/mi).`,
+      targetPace: `${easyLo}/mi`,
     },
     tempo: {
-      notes: `Lactate threshold work. 2mi warm-up + 15-25min at threshold pace (${thresholdPace}) + 2mi cool-down.`,
+      notes: `Lactate threshold work. 2mi warm-up + 15–25 min at threshold pace (${thresholdPace}/mi) + 2mi cool-down.`,
       targetPace: thresholdPace,
       repsCount: null,
       repDistanceMeters: null,
       restSeconds: null,
     },
     interval: {
-      notes: `VO₂max intervals. Warm-up 2mi, then 5×1000m at ${intervalPace} with equal recovery, cool-down 2mi.`,
+      notes: `VO₂max intervals. 2mi warm-up, 5×1000m at ${intervalPace}/mi with 180 sec (3 min) recovery, 2mi cool-down.`,
       targetPace: intervalPace,
       repsCount: 5,
       repDistanceMeters: 1000,
       restSeconds: 180,
     },
     repetition: {
-      notes: `Speed work. 8×200m at mile pace or faster with full recovery between reps.`,
-      targetPace: intervalPace,
+      notes: `Speed work. 8×200m at mile pace (${repetitionPace}/mi or faster) with full recovery (2–3 min walk/stand between reps).`,
+      targetPace: repetitionPace,
       repsCount: 8,
       repDistanceMeters: 200,
       restSeconds: 120,
     },
     generalspeed: {
-      notes: `Fartlek or hill repeats. Run by feel with variable efforts between easy and threshold.`,
-      targetPace: `${marathonPace}–${thresholdPace}`,
+      notes: `Fartlek or hill repeats. Run by feel with variable efforts between easy (${easyLo}/mi) and threshold (${thresholdPace}/mi).`,
+      targetPace: `${easyLo}–${thresholdPace}`,
     },
   }
 
@@ -531,7 +548,7 @@ function generateRunData(date, workoutType, distance, paces, raceDistance, targe
 
   return {
     date,
-    distance: parseFloat(distance.toFixed(1)),
+    distance: distance, // already rounded to whole mile
     workoutType,
     notes: template.notes,
     targetPace: template.targetPace,
