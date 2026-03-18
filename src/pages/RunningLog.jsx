@@ -34,6 +34,104 @@ function getTypeStyle(workoutType) {
   return { label: type?.label ?? workoutType, color, style: WORKOUT_TYPE_COLORS[color] }
 }
 
+// ── ViewToggle ─────────────────────────────────────────────────────────────────
+
+function ViewToggle({ view, onChange }) {
+  return (
+    <div className="flex items-center bg-gray-100 rounded-xl p-1 gap-0.5">
+      <button
+        onClick={() => onChange('spinner')}
+        title="Spinner view"
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+          view === 'spinner'
+            ? 'bg-white text-gray-900 shadow-sm'
+            : 'text-gray-400 hover:text-gray-600'
+        }`}
+      >
+        {/* drum / cylinder icon */}
+        <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6">
+          <ellipse cx="8" cy="3.5" rx="5" ry="1.8" />
+          <line x1="3" y1="3.5" x2="3" y2="12.5" />
+          <line x1="13" y1="3.5" x2="13" y2="12.5" />
+          <ellipse cx="8" cy="12.5" rx="5" ry="1.8" />
+          <line x1="3" y1="8" x2="13" y2="8" strokeDasharray="1.5 1.5" />
+        </svg>
+        Spin
+      </button>
+      <button
+        onClick={() => onChange('classic')}
+        title="Classic list view"
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+          view === 'classic'
+            ? 'bg-white text-gray-900 shadow-sm'
+            : 'text-gray-400 hover:text-gray-600'
+        }`}
+      >
+        {/* list icon */}
+        <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6">
+          <line x1="5" y1="4" x2="13" y2="4" />
+          <line x1="5" y1="8" x2="13" y2="8" />
+          <line x1="5" y1="12" x2="13" y2="12" />
+          <circle cx="2.5" cy="4"  r="1" fill="currentColor" stroke="none" />
+          <circle cx="2.5" cy="8"  r="1" fill="currentColor" stroke="none" />
+          <circle cx="2.5" cy="12" r="1" fill="currentColor" stroke="none" />
+        </svg>
+        List
+      </button>
+    </div>
+  )
+}
+
+// ── ClassicList ────────────────────────────────────────────────────────────────
+
+function ClassicList({ runs, onEdit, onDelete }) {
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="flex items-center gap-3 px-5 py-2.5 border-b border-gray-100 bg-gray-50">
+        <div className="w-2.5 flex-shrink-0" />
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 w-24 hidden sm:block">Date</p>
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 w-28 hidden sm:block">Type</p>
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 w-20">Distance</p>
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 w-16 hidden sm:block">Time</p>
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 w-20 hidden md:block">Pace</p>
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 flex-1 hidden lg:block">Details</p>
+      </div>
+      <div className="divide-y divide-gray-50">
+        {runs.map(run => {
+          const { style, label } = getTypeStyle(run.workoutType)
+          const pace = fmtPace(run.distance, run.duration, run.distanceUnit)
+          return (
+            <div key={run.id} className="group flex items-center gap-3 px-5 py-3 hover:bg-gray-50 transition-colors">
+              <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${style.dot}`} />
+              <p className="text-xs text-gray-500 w-24 flex-shrink-0 hidden sm:block">{fmtDate(run.date)}</p>
+              <span className={`hidden sm:inline-flex text-[11px] font-bold px-2 py-0.5 rounded-full w-28 justify-center flex-shrink-0 ${style.bg} ${style.text}`}>
+                {label}
+              </span>
+              <p className="text-sm font-bold text-gray-900 w-20 flex-shrink-0">{run.distance.toFixed(2)} mi</p>
+              <p className="text-xs text-gray-500 w-16 flex-shrink-0 hidden sm:block">
+                {secondsToTimeStr(run.duration, run.duration >= 3600)}
+              </p>
+              {pace
+                ? <p className="text-xs text-gray-500 w-20 flex-shrink-0 hidden md:block">{pace} /mi</p>
+                : <div className="w-20 hidden md:block flex-shrink-0" />
+              }
+              <div className="hidden lg:flex gap-3 flex-1">
+                {run.heartRate && <p className="text-xs text-gray-400">{run.heartRate} bpm</p>}
+                {run.elevationGain && <p className="text-xs text-gray-400">{run.elevationGain.toLocaleString()} ft ↑</p>}
+              </div>
+              <p className="text-xs text-gray-400 flex-1 truncate sm:hidden">{run.subtitle || run.notes || label}</p>
+              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                <button onClick={() => onEdit(run)} className="text-xs text-gray-400 hover:text-gray-700 px-2 py-1 rounded-lg hover:bg-gray-100 transition-colors">Edit</button>
+                <button onClick={() => onDelete(run.id)} className="text-xs text-red-400 hover:text-red-600 px-2 py-1 rounded-lg hover:bg-red-50 transition-colors">Delete</button>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 const BORDER_MAP = {
   green:  'border-l-green-500',
   blue:   'border-l-blue-500',
@@ -346,6 +444,7 @@ export default function RunningLog() {
   const [showForm, setShowForm]     = useState(false)
   const [editingRun, setEditingRun] = useState(null)
   const [filters, setFilters]       = useState(DEFAULT_FILTERS)
+  const [viewMode, setViewMode]     = useState('spinner')
   const { runs, addRun, deleteRun, updateRun, loading } = useRunningLogDb()
   const { checkAndUpdatePR } = usePersonalRecordsDb()
   const { profile } = useProfile()
@@ -396,15 +495,20 @@ export default function RunningLog() {
 
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-3xl font-black text-gray-900">
-            {profile?.displayName
-              ? `${profile.displayName.trim().split(' ')[0]}'s Log`
-              : 'My Log'}
-          </h1>
-          <p className="text-sm text-gray-400 mt-0.5">
-            {runs.length} run{runs.length !== 1 ? 's' : ''} · {totalMiles.toFixed(1)} mi shown
-          </p>
+        <div className="flex items-center gap-4">
+          <div>
+            <h1 className="text-3xl font-black text-gray-900">
+              {profile?.displayName
+                ? `${profile.displayName.trim().split(' ')[0]}'s Log`
+                : 'My Log'}
+            </h1>
+            <p className="text-sm text-gray-400 mt-0.5">
+              {runs.length} run{runs.length !== 1 ? 's' : ''} · {totalMiles.toFixed(1)} mi shown
+            </p>
+          </div>
+          {olderRuns.length > 0 && (
+            <ViewToggle view={viewMode} onChange={setViewMode} />
+          )}
         </div>
         <button
           className="btn-primary flex items-center gap-2"
@@ -464,13 +568,18 @@ export default function RunningLog() {
         </div>
       )}
 
-      {/* History spinner */}
+      {/* History — spinner or classic list */}
       {olderRuns.length > 0 && (
-        <HistorySpinner
-          runs={olderRuns}
-          onEdit={run => setEditingRun(run)}
-          onDelete={deleteRun}
-        />
+        viewMode === 'spinner'
+          ? <HistorySpinner runs={olderRuns} onEdit={run => setEditingRun(run)} onDelete={deleteRun} />
+          : (
+            <div>
+              <p className="text-[11px] font-black uppercase tracking-widest text-gray-400 mb-3">
+                History · {olderRuns.length} run{olderRuns.length !== 1 ? 's' : ''}
+              </p>
+              <ClassicList runs={olderRuns} onEdit={run => setEditingRun(run)} onDelete={deleteRun} />
+            </div>
+          )
       )}
 
       {/* Edit modal */}
