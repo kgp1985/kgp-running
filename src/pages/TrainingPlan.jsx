@@ -260,7 +260,7 @@ function LandingPage({ plannedRuns, upcomingRuns, loading, onAddPlan, onMarkDone
 
           {/* This Week Section */}
           {!loading && plannedRuns.length > 0 && (
-            <div className="space-y-4">
+            <div ref={planRef} className="space-y-4">
               <p className="text-xs font-bold tracking-[0.2em] uppercase text-red-500">This Week</p>
               {thisWeekRuns.length === 0 ? (
                 <div className="bg-zinc-950 rounded-2xl p-6 text-center">
@@ -283,7 +283,7 @@ function LandingPage({ plannedRuns, upcomingRuns, loading, onAddPlan, onMarkDone
           )}
 
           {/* Plan Section */}
-          <div ref={planRef} className="space-y-8">
+          <div className="space-y-8">
             {!loading && plannedRuns.length > 0 && (
               <>
                 {/* Upcoming sections */}
