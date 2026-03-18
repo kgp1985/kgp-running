@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import PageWrapper from '../components/layout/PageWrapper.jsx'
 import RunForm from '../features/log/RunForm.jsx'
 import LogFilters from '../features/log/LogFilters.jsx'
@@ -47,24 +47,24 @@ const BORDER_MAP = {
 
 function runToFormValues(run) {
   return {
-    date:        run.date,
-    distance:    run.distanceUnit === 'km'
+    date:             run.date,
+    distance:         run.distanceUnit === 'km'
       ? (run.distance * 1.60934).toFixed(2)
       : run.distance.toFixed(2),
-    distanceUnit:    run.distanceUnit ?? 'mi',
-    durationStr:     secondsToTimeStr(run.duration, run.duration >= 3600),
-    heartRate:       run.heartRate ?? '',
-    workoutType:     run.workoutType,
-    weather:         run.weather ?? '',
-    notes:           run.notes ?? '',
-    subtitle:        run.subtitle ?? '',
-    isPublic:        run.isPublic ?? false,
-    elevationGain:   run.elevationGain ?? '',
-    shoeId:          run.shoeId ?? '',
-    hasReps:         !!run.repsCount,
-    repsCount:       run.repsCount ?? '',
+    distanceUnit:     run.distanceUnit ?? 'mi',
+    durationStr:      secondsToTimeStr(run.duration, run.duration >= 3600),
+    heartRate:        run.heartRate ?? '',
+    workoutType:      run.workoutType,
+    weather:          run.weather ?? '',
+    notes:            run.notes ?? '',
+    subtitle:         run.subtitle ?? '',
+    isPublic:         run.isPublic ?? false,
+    elevationGain:    run.elevationGain ?? '',
+    shoeId:           run.shoeId ?? '',
+    hasReps:          !!run.repsCount,
+    repsCount:        run.repsCount ?? '',
     repDistanceMeters: run.repDistanceMeters ?? '',
-    restSeconds:     run.restSeconds ?? 90,
+    restSeconds:      run.restSeconds ?? 90,
   }
 }
 
@@ -79,29 +79,20 @@ function RunFeatureCard({ run, onDelete, onEdit }) {
   return (
     <div className={`bg-white rounded-2xl border border-gray-100 shadow-sm border-l-4 ${borderColor} overflow-hidden flex flex-col`}>
       <div className="px-5 pt-5 pb-4 flex-1">
-        {/* Date + type pill */}
         <div className="flex items-center justify-between mb-3">
           <p className="text-xs text-gray-400 font-medium">{fmtDate(run.date)}</p>
           <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${style.bg} ${style.text}`}>
             {label}
           </span>
         </div>
-
-        {/* Subtitle / notes */}
         {(run.subtitle || run.notes) && (
           <p className="text-xs text-gray-500 mb-3 line-clamp-2 leading-relaxed">
             {run.subtitle || run.notes}
           </p>
         )}
-
-        {/* Big distance */}
         <p className="text-4xl font-black text-gray-900 leading-none mb-1">
-          {run.distanceUnit === 'km'
-            ? `${distMi.toFixed(2)} mi`
-            : `${run.distance.toFixed(2)} mi`}
+          {distMi.toFixed(2)} mi
         </p>
-
-        {/* Stats row */}
         <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3">
           <Stat label="Time" value={secondsToTimeStr(run.duration, run.duration >= 3600)} />
           {pace && <Stat label="Pace" value={`${pace} /mi`} />}
@@ -109,20 +100,12 @@ function RunFeatureCard({ run, onDelete, onEdit }) {
           {run.elevationGain && <Stat label="Vert" value={`${run.elevationGain.toLocaleString()} ft`} />}
         </div>
       </div>
-
-      {/* Actions */}
       <div className="flex border-t border-gray-100">
-        <button
-          onClick={() => onEdit(run)}
-          className="flex-1 text-xs font-semibold text-gray-500 hover:text-gray-800 hover:bg-gray-50 py-2.5 transition-colors"
-        >
+        <button onClick={() => onEdit(run)} className="flex-1 text-xs font-semibold text-gray-500 hover:text-gray-800 hover:bg-gray-50 py-2.5 transition-colors">
           Edit
         </button>
         <div className="w-px bg-gray-100" />
-        <button
-          onClick={() => onDelete(run.id)}
-          className="flex-1 text-xs font-semibold text-red-400 hover:text-red-600 hover:bg-red-50 py-2.5 transition-colors"
-        >
+        <button onClick={() => onDelete(run.id)} className="flex-1 text-xs font-semibold text-red-400 hover:text-red-600 hover:bg-red-50 py-2.5 transition-colors">
           Delete
         </button>
       </div>
@@ -139,69 +122,218 @@ function Stat({ label, value }) {
   )
 }
 
-// ── RunListRow ─────────────────────────────────────────────────────────────────
+// ── HistorySpinner ─────────────────────────────────────────────────────────────
+// Drum-barrel "word spinner" style navigation for older runs.
 
-function RunListRow({ run, onDelete, onEdit }) {
-  const { label, color, style } = getTypeStyle(run.workoutType)
-  const pace = fmtPace(run.distance, run.duration, run.distanceUnit)
+const ITEM_H = 68 // px per row in the drum
+
+function HistorySpinner({ runs, onEdit, onDelete }) {
+  const [activeIdx, setActiveIdx] = useState(0)
+  const [dragStartY, setDragStartY] = useState(null)
+  const containerRef = useRef(null)
+
+  const safeIdx = Math.min(activeIdx, runs.length - 1)
+
+  const spin = useCallback((dir) => {
+    setActiveIdx(i => Math.max(0, Math.min(runs.length - 1, i + dir)))
+  }, [runs.length])
+
+  // Mouse wheel to spin
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const onWheel = (e) => {
+      e.preventDefault()
+      spin(e.deltaY > 0 ? 1 : -1)
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [spin])
+
+  const handlePointerDown = (e) => setDragStartY(e.clientY)
+  const handlePointerUp = (e) => {
+    if (dragStartY === null) return
+    const delta = dragStartY - e.clientY
+    if (Math.abs(delta) > 12) spin(delta > 0 ? 1 : -1)
+    setDragStartY(null)
+  }
+
+  if (!runs.length) return null
+
+  // Dot indicator — max 8 shown, rest collapsed
+  const DOT_MAX = 8
+  const showDots = runs.length <= DOT_MAX
 
   return (
-    <div className="group flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors rounded-xl">
-      {/* Color dot */}
-      <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${style.dot}`} />
+    <div className="bg-zinc-950 rounded-2xl overflow-hidden select-none">
 
-      {/* Date */}
-      <p className="text-xs text-gray-500 w-28 flex-shrink-0 hidden sm:block">{fmtDate(run.date)}</p>
-
-      {/* Type pill */}
-      <span className={`hidden sm:inline-flex text-[11px] font-bold px-2 py-0.5 rounded-full w-28 justify-center flex-shrink-0 ${style.bg} ${style.text}`}>
-        {label}
-      </span>
-
-      {/* Distance */}
-      <p className="text-sm font-bold text-gray-900 w-20 flex-shrink-0">
-        {run.distance.toFixed(2)} mi
-      </p>
-
-      {/* Time */}
-      <p className="text-xs text-gray-500 w-16 flex-shrink-0 hidden sm:block">
-        {secondsToTimeStr(run.duration, run.duration >= 3600)}
-      </p>
-
-      {/* Pace */}
-      {pace
-        ? <p className="text-xs text-gray-500 w-20 flex-shrink-0 hidden md:block">{pace} /mi</p>
-        : <div className="w-20 flex-shrink-0 hidden md:block" />
-      }
-
-      {/* HR / vert */}
-      <div className="hidden lg:flex gap-3 flex-1">
-        {run.heartRate && (
-          <p className="text-xs text-gray-400">{run.heartRate} bpm</p>
-        )}
-        {run.elevationGain && (
-          <p className="text-xs text-gray-400">{run.elevationGain.toLocaleString()} ft ↑</p>
-        )}
+      {/* Top bar */}
+      <div className="flex items-center justify-between px-5 pt-4 pb-1">
+        <p className="text-[11px] font-black uppercase tracking-widest text-zinc-500">
+          History · {runs.length} run{runs.length !== 1 ? 's' : ''}
+        </p>
+        <p className="text-xs tabular-nums text-zinc-600">{safeIdx + 1} / {runs.length}</p>
       </div>
 
-      {/* Subtitle/notes on mobile */}
-      <p className="text-xs text-gray-400 flex-1 truncate sm:hidden">
-        {run.subtitle || run.notes || label}
-      </p>
+      {/* Drum barrel */}
+      <div
+        ref={containerRef}
+        className="relative cursor-grab active:cursor-grabbing"
+        style={{ height: ITEM_H * 5, perspective: '700px' }}
+        onPointerDown={handlePointerDown}
+        onPointerUp={handlePointerUp}
+        onPointerLeave={() => setDragStartY(null)}
+      >
+        {/* Center highlight band */}
+        <div
+          className="absolute inset-x-0 pointer-events-none z-10"
+          style={{
+            top: '50%',
+            transform: 'translateY(-50%)',
+            height: ITEM_H,
+            background: 'rgba(255,255,255,0.03)',
+            borderTop: '1px solid rgba(255,255,255,0.07)',
+            borderBottom: '1px solid rgba(255,255,255,0.07)',
+          }}
+        />
 
-      {/* Edit / Delete — revealed on hover */}
-      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+        {/* Top fade mask */}
+        <div
+          className="absolute inset-x-0 top-0 z-20 pointer-events-none"
+          style={{ height: ITEM_H * 2.2, background: 'linear-gradient(to bottom, #09090b 15%, transparent 100%)' }}
+        />
+        {/* Bottom fade mask */}
+        <div
+          className="absolute inset-x-0 bottom-0 z-20 pointer-events-none"
+          style={{ height: ITEM_H * 2.2, background: 'linear-gradient(to top, #09090b 15%, transparent 100%)' }}
+        />
+
+        {/* Items */}
+        {runs.map((run, i) => {
+          const offset = i - safeIdx
+          if (Math.abs(offset) > 4) return null
+
+          const { style, label } = getTypeStyle(run.workoutType)
+          const isActive = offset === 0
+          const rotX = offset * -16
+          const translateY = offset * ITEM_H
+          const opacity = Math.max(0, 1 - Math.abs(offset) * 0.42)
+          const scale = 1 - Math.abs(offset) * 0.055
+          const pace = fmtPace(run.distance, run.duration, run.distanceUnit)
+
+          return (
+            <div
+              key={run.id}
+              style={{
+                position: 'absolute',
+                top: '50%',
+                left: 0,
+                right: 0,
+                height: ITEM_H,
+                transform: `translateY(calc(-50% + ${translateY}px)) rotateX(${rotX}deg) scale(${scale})`,
+                opacity,
+                transformOrigin: 'center center',
+                transition: dragStartY !== null ? 'none' : 'all 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+                zIndex: isActive ? 5 : 1,
+              }}
+            >
+              <div className="flex items-center gap-3 px-5 h-full">
+
+                {/* Color dot */}
+                <div className={`w-2 h-2 rounded-full flex-shrink-0 ${style.dot}`} style={{ opacity: isActive ? 1 : 0.5 }} />
+
+                {/* Date */}
+                <p className={`text-xs flex-shrink-0 w-24 ${isActive ? 'text-zinc-400' : 'text-zinc-600'}`}>
+                  {fmtDate(run.date)}
+                </p>
+
+                {/* Distance — big when active */}
+                <p className={`font-black flex-shrink-0 tabular-nums transition-all ${isActive ? 'text-2xl text-white' : 'text-sm text-zinc-500'}`}>
+                  {run.distance.toFixed(2)} mi
+                </p>
+
+                {/* Active-only: type + stats */}
+                {isActive && (
+                  <>
+                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${style.bg} ${style.text}`}>
+                      {label}
+                    </span>
+                    <div className="flex gap-3 flex-1 overflow-hidden">
+                      <span className="text-xs text-zinc-500 flex-shrink-0">
+                        {secondsToTimeStr(run.duration, run.duration >= 3600)}
+                      </span>
+                      {pace && <span className="text-xs text-zinc-500 flex-shrink-0">{pace}/mi</span>}
+                      {run.heartRate && (
+                        <span className="text-xs text-zinc-600 hidden sm:inline flex-shrink-0">{run.heartRate} bpm</span>
+                      )}
+                      {run.elevationGain && (
+                        <span className="text-xs text-zinc-600 hidden sm:inline flex-shrink-0">{run.elevationGain.toLocaleString()} ft ↑</span>
+                      )}
+                    </div>
+                  </>
+                )}
+
+                {/* Spacer for non-active */}
+                {!isActive && <div className="flex-1" />}
+
+                {/* Edit / Delete — active row only */}
+                {isActive && (
+                  <div className="flex gap-1 flex-shrink-0 z-30">
+                    <button
+                      onPointerDown={e => e.stopPropagation()}
+                      onClick={e => { e.stopPropagation(); onEdit(run) }}
+                      className="text-xs text-zinc-500 hover:text-white px-2 py-1 rounded-lg hover:bg-zinc-800 transition-colors"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onPointerDown={e => e.stopPropagation()}
+                      onClick={e => { e.stopPropagation(); onDelete(run.id) }}
+                      className="text-xs text-red-600 hover:text-red-400 px-2 py-1 rounded-lg hover:bg-zinc-800 transition-colors"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Bottom nav */}
+      <div className="flex items-center justify-between px-5 pb-4 pt-2">
         <button
-          onClick={() => onEdit(run)}
-          className="text-xs text-gray-400 hover:text-gray-700 px-2 py-1 rounded-lg hover:bg-gray-100 transition-colors"
+          onClick={() => spin(-1)}
+          disabled={safeIdx === 0}
+          className="text-[11px] font-semibold text-zinc-600 hover:text-white disabled:opacity-20 transition-colors tracking-wide"
         >
-          Edit
+          ↑ Newer
         </button>
+
+        {/* Dot indicators or range text */}
+        {showDots ? (
+          <div className="flex gap-1.5 items-center">
+            {runs.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setActiveIdx(i)}
+                className={`rounded-full transition-all ${i === safeIdx ? 'w-4 h-1.5 bg-white' : 'w-1.5 h-1.5 bg-zinc-700 hover:bg-zinc-500'}`}
+              />
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs text-zinc-700 tabular-nums">
+            Scroll or drag to navigate
+          </p>
+        )}
+
         <button
-          onClick={() => onDelete(run.id)}
-          className="text-xs text-red-400 hover:text-red-600 px-2 py-1 rounded-lg hover:bg-red-50 transition-colors"
+          onClick={() => spin(1)}
+          disabled={safeIdx === runs.length - 1}
+          className="text-[11px] font-semibold text-zinc-600 hover:text-white disabled:opacity-20 transition-colors tracking-wide"
         >
-          Delete
+          Older ↓
         </button>
       </div>
     </div>
@@ -229,7 +361,6 @@ export default function RunningLog() {
     setEditingRun(null)
   }
 
-  // Apply filters
   const filtered = runs
     .filter(r => {
       if (filters.workoutType && r.workoutType !== filters.workoutType) return false
@@ -243,15 +374,13 @@ export default function RunningLog() {
         case 'distance-desc': return b.distance - a.distance
         case 'distance-asc':  return a.distance - b.distance
         case 'pace-asc':      return (a.duration / a.distance) - (b.duration / b.distance)
-        default:              return b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt)
+        default:              return b.date.localeCompare(a.date) || b.createdAt?.localeCompare(a.createdAt ?? '') ?? 0
       }
     })
 
   const recentRuns = filtered.slice(0, 3)
   const olderRuns  = filtered.slice(3)
-  const totalMiles = filtered.reduce((s, r) => {
-    return s + (r.distanceUnit === 'km' ? r.distance / 1.60934 : r.distance)
-  }, 0)
+  const totalMiles = filtered.reduce((s, r) => s + (r.distanceUnit === 'km' ? r.distance / 1.60934 : r.distance), 0)
 
   if (loading) {
     return (
@@ -263,7 +392,6 @@ export default function RunningLog() {
 
   return (
     <PageWrapper>
-      {/* Watch sync pending runs */}
       <PendingRunBanner />
 
       {/* Header */}
@@ -336,35 +464,13 @@ export default function RunningLog() {
         </div>
       )}
 
-      {/* Older runs list */}
+      {/* History spinner */}
       {olderRuns.length > 0 && (
-        <div>
-          <p className="text-[11px] font-black uppercase tracking-widest text-gray-400 mb-2">
-            History · {olderRuns.length} run{olderRuns.length !== 1 ? 's' : ''}
-          </p>
-
-          {/* Column headers */}
-          <div className="flex items-center gap-3 px-4 py-2 border-b border-gray-100 mb-1">
-            <div className="w-2.5 flex-shrink-0" />
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 w-28 hidden sm:block">Date</p>
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 w-28 hidden sm:block">Type</p>
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 w-20">Distance</p>
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 w-16 hidden sm:block">Time</p>
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 w-20 hidden md:block">Pace</p>
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 flex-1 hidden lg:block">Details</p>
-          </div>
-
-          <div className="divide-y divide-gray-50">
-            {olderRuns.map(run => (
-              <RunListRow
-                key={run.id}
-                run={run}
-                onDelete={deleteRun}
-                onEdit={run => setEditingRun(run)}
-              />
-            ))}
-          </div>
-        </div>
+        <HistorySpinner
+          runs={olderRuns}
+          onEdit={run => setEditingRun(run)}
+          onDelete={deleteRun}
+        />
       )}
 
       {/* Edit modal */}
