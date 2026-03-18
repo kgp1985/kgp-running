@@ -374,7 +374,7 @@ export default function RunningLog() {
         case 'distance-desc': return b.distance - a.distance
         case 'distance-asc':  return a.distance - b.distance
         case 'pace-asc':      return (a.duration / a.distance) - (b.duration / b.distance)
-        default:              return b.date.localeCompare(a.date) || b.createdAt?.localeCompare(a.createdAt ?? '') ?? 0
+        default:              return b.date.localeCompare(a.date) || (b.createdAt?.localeCompare(a.createdAt ?? '') ?? 0)
       }
     })
 
