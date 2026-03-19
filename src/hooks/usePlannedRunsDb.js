@@ -35,6 +35,11 @@ export function usePlannedRunsDb() {
     setPlannedRuns(prev => prev.filter(r => r.id !== id))
   }, [user])
 
+  // Only updates local state — DB deletion is handled by deletePlanWithRuns in plansApi
+  const removeRunsByPlanId = useCallback((planId) => {
+    setPlannedRuns(prev => prev.filter(r => r.planId !== planId))
+  }, [])
+
   const editPlannedRun = useCallback(async (id, updates) => {
     if (!user) return null
     const updated = await updatePlannedRun(id, updates)
@@ -62,6 +67,7 @@ export function usePlannedRunsDb() {
     loading,
     addPlannedRun,
     removePlannedRun,
+    removeRunsByPlanId,
     editPlannedRun,
     getNextDays,
   }

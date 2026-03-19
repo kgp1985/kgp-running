@@ -136,25 +136,171 @@ function weekStats(runs) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Plan Management Components
+// ─────────────────────────────────────────────────────────────────────────────
+
+function PlanCard({ plan, isSelected, runCount, onSelect, onDelete }) {
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const distLabels = { '5k': '5K', '10k': '10K', 'half': 'Half Marathon', 'marathon': 'Marathon' }
+
+  const styleLabel = plan.planStyle === 'coach'
+    ? `${plan.coachStyle ? plan.coachStyle.charAt(0).toUpperCase() + plan.coachStyle.slice(1) + '-Inspired' : 'Coach'}`
+    : 'Custom'
+
+  return (
+    <div className={`border-2 rounded-2xl p-5 transition-all ${
+      isSelected ? 'border-red-500 bg-red-50' : 'border-gray-100 bg-white hover:border-gray-200'
+    }`}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <h3 className="font-bold text-gray-900 text-base">{plan.name}</h3>
+          <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1.5">
+            {plan.raceDistance && (
+              <span className="text-xs text-gray-500">{distLabels[plan.raceDistance] || plan.raceDistance}</span>
+            )}
+            {plan.raceDate && (
+              <span className="text-xs text-gray-500">
+                Race: {new Date(plan.raceDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+              </span>
+            )}
+            {plan.totalWeeks && <span className="text-xs text-gray-500">{plan.totalWeeks} weeks</span>}
+            {plan.peakMileage && <span className="text-xs text-gray-500">Peak {plan.peakMileage} mi/wk</span>}
+            {plan.daysPerWeek && <span className="text-xs text-gray-500">{plan.daysPerWeek} days/wk</span>}
+          </div>
+          <div className="flex gap-3 mt-1">
+            <span className="text-xs text-gray-400">{styleLabel}</span>
+            <span className="text-xs text-gray-400">{runCount} run{runCount !== 1 ? 's' : ''}</span>
+            <span className="text-xs text-gray-400">
+              Created {new Date(plan.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2 mt-4">
+        <button
+          onClick={onSelect}
+          className={`text-sm px-4 py-2 rounded-lg font-semibold transition-colors ${
+            isSelected
+              ? 'bg-red-500 text-white'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          }`}
+        >
+          {isSelected ? '✓ Viewing Runs' : 'View Runs'}
+        </button>
+
+        {!confirmingDelete ? (
+          <button
+            onClick={() => setConfirmingDelete(true)}
+            className="text-sm px-4 py-2 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors font-medium"
+          >
+            Delete
+          </button>
+        ) : (
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs text-red-600 font-medium">
+              Delete plan + {runCount} run{runCount !== 1 ? 's' : ''}?
+            </span>
+            <button
+              onClick={() => { onDelete(); setConfirmingDelete(false) }}
+              className="text-xs bg-red-500 text-white px-3 py-1.5 rounded-lg hover:bg-red-600 font-semibold"
+            >
+              Confirm
+            </button>
+            <button
+              onClick={() => setConfirmingDelete(false)}
+              className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1.5"
+            >
+              Cancel
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function PlansSection({ plans, plansLoading, plannedRuns, selectedPlanId, onSelectPlan, onDeletePlan, onCreatePlan }) {
+  const runCountByPlan = plans.reduce((acc, p) => {
+    acc[p.id] = plannedRuns.filter(r => r.planId === p.id).length
+    return acc
+  }, {})
+
+  if (plansLoading) {
+    return <p className="text-sm text-gray-400 text-center py-16">Loading plans...</p>
+  }
+
+  if (plans.length === 0) {
+    return (
+      <div className="text-center py-16 space-y-4">
+        <p className="text-gray-500 text-sm">No training plans yet.</p>
+        <button
+          onClick={onCreatePlan}
+          className="bg-black text-white font-bold px-6 py-3 rounded-xl hover:bg-gray-800 transition-colors text-sm"
+        >
+          Create Your First Plan
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-bold tracking-[0.2em] uppercase text-red-500">Training Plans</p>
+        <button
+          onClick={onCreatePlan}
+          className="text-sm font-semibold text-gray-500 hover:text-black transition-colors"
+        >
+          + New Plan
+        </button>
+      </div>
+      {plans.map(plan => (
+        <PlanCard
+          key={plan.id}
+          plan={plan}
+          isSelected={selectedPlanId === plan.id}
+          runCount={runCountByPlan[plan.id] || 0}
+          onSelect={() => onSelectPlan(plan.id === selectedPlanId ? null : plan.id)}
+          onDelete={() => onDeletePlan(plan.id)}
+        />
+      ))}
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Landing Page
 // ─────────────────────────────────────────────────────────────────────────────
 
-function LandingPage({ plannedRuns, upcomingRuns, loading, onAddPlan, onMarkDone, onDelete, onEdit, onCreatePlan, markDoneRun, setMarkDoneRun, showForm, setShowForm }) {
+function LandingPage({
+  plannedRuns, upcomingRuns, loading, onAddPlan, onMarkDone, onDelete, onEdit, onCreatePlan,
+  markDoneRun, setMarkDoneRun, showForm, setShowForm,
+  // plan management
+  view, setView, plans, plansLoading, selectedPlanId, onSelectPlan, onDeletePlan,
+}) {
   const planRef = useRef(null)
-  const weekGroups = groupByWeek(plannedRuns)
   const today = new Date().toISOString().slice(0, 10)
-  const thisWeekStart = new Date()
   const thisWeekEnd = new Date()
   thisWeekEnd.setDate(thisWeekEnd.getDate() + 6)
   const thisWeekEndStr = thisWeekEnd.toISOString().slice(0, 10)
 
-  const thisWeekRuns = plannedRuns.filter(r => r.date >= today && r.date <= thisWeekEndStr)
-  const upcomingPlannedRuns = plannedRuns.filter(r => r.date > thisWeekEndStr)
-  const pastRuns = plannedRuns.filter(r => r.date < today)
+  // Apply plan filter when a plan is selected
+  const displayedRuns = selectedPlanId
+    ? plannedRuns.filter(r => r.planId === selectedPlanId)
+    : plannedRuns
+
+  const thisWeekRuns = displayedRuns.filter(r => r.date >= today && r.date <= thisWeekEndStr)
+  const upcomingPlannedRuns = displayedRuns.filter(r => r.date > thisWeekEndStr)
+  const pastRuns = displayedRuns.filter(r => r.date < today)
+
+  const selectedPlan = plans.find(p => p.id === selectedPlanId)
 
   const handleScrollToView = () => {
     planRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
+
+  const hasContent = plannedRuns.length > 0 || plans.length > 0
 
   return (
     <>
@@ -242,74 +388,166 @@ function LandingPage({ plannedRuns, upcomingRuns, loading, onAddPlan, onMarkDone
         </div>
       )}
 
+      {/* ─ View Tabs ─ */}
+      {hasContent && (
+        <div className="bg-white border-b border-gray-100 sticky top-0 z-20">
+          <div className="max-w-5xl mx-auto px-4 flex">
+            <button
+              onClick={() => setView('schedule')}
+              className={`px-4 py-3 text-sm font-semibold border-b-2 mr-1 transition-colors ${
+                view === 'schedule'
+                  ? 'border-black text-black'
+                  : 'border-transparent text-gray-500 hover:text-gray-800'
+              }`}
+            >
+              Schedule
+            </button>
+            <button
+              onClick={() => setView('plans')}
+              className={`px-4 py-3 text-sm font-semibold border-b-2 transition-colors ${
+                view === 'plans'
+                  ? 'border-black text-black'
+                  : 'border-transparent text-gray-500 hover:text-gray-800'
+              }`}
+            >
+              Plans
+              {plans.length > 0 && (
+                <span className="ml-1.5 text-xs text-gray-400 font-normal">{plans.length}</span>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ─ Content ─ */}
       <div className="bg-white">
         <div className="max-w-5xl mx-auto px-4 py-16 space-y-16">
 
-          {/* Add Workout Form */}
-          {showForm && (
-            <div className="card">
-              <h2 className="text-base font-semibold text-gray-900 mb-4">Plan a Run</h2>
-              <PlannedRunForm onSubmit={onAddPlan} onCancel={() => setShowForm(false)} />
-            </div>
+          {/* Plans view */}
+          {view === 'plans' && (
+            <PlansSection
+              plans={plans}
+              plansLoading={plansLoading}
+              plannedRuns={plannedRuns}
+              selectedPlanId={selectedPlanId}
+              onSelectPlan={(id) => { onSelectPlan(id); setView('schedule') }}
+              onDeletePlan={onDeletePlan}
+              onCreatePlan={onCreatePlan}
+            />
           )}
 
-          {/* Loading state */}
-          {loading && (
-            <p className="text-sm text-gray-400 text-center py-16">Loading your plan...</p>
-          )}
-
-          {/* This Week Section */}
-          {!loading && plannedRuns.length > 0 && (
-            <div ref={planRef} className="space-y-4">
-              <p className="text-xs font-bold tracking-[0.2em] uppercase text-red-500">This Week</p>
-              {thisWeekRuns.length === 0 ? (
-                <div className="bg-zinc-950 rounded-2xl p-6 text-center">
-                  <p className="text-sm text-zinc-400">Nothing planned yet — add a workout or create a plan.</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {thisWeekRuns.map(run => (
-                    <PlannedRunCard
-                      key={run.id}
-                      run={run}
-                      onDelete={onDelete}
-                      onMarkDone={(r) => setMarkDoneRun(r)}
-                      onEdit={onEdit}
-                    />
-                  ))}
+          {/* Schedule view */}
+          {view === 'schedule' && (
+            <>
+              {/* Plan filter banner */}
+              {selectedPlan && (
+                <div className="flex items-center gap-3 bg-red-50 border border-red-100 rounded-xl px-4 py-3">
+                  <span className="text-sm text-red-700 min-w-0">
+                    Viewing: <strong className="truncate">{selectedPlan.name}</strong>
+                  </span>
+                  <div className="ml-auto flex items-center gap-3 shrink-0">
+                    <button
+                      onClick={() => setView('plans')}
+                      className="text-xs text-red-400 hover:text-red-600 font-medium"
+                    >
+                      ← Back to Plans
+                    </button>
+                    <button
+                      onClick={() => onSelectPlan(null)}
+                      className="text-xs text-red-400 hover:text-red-600 font-medium"
+                    >
+                      View all runs ×
+                    </button>
+                  </div>
                 </div>
               )}
-            </div>
-          )}
 
-          {/* Plan Section */}
-          <div className="space-y-8">
-            {!loading && plannedRuns.length > 0 && (
-              <>
-                {/* Upcoming sections */}
-                {upcomingPlannedRuns.length > 0 && (
-                  <div>
-                    <p className="text-xs font-bold tracking-[0.2em] uppercase text-red-500 mb-4">Upcoming</p>
-                    {groupByWeek(upcomingPlannedRuns).map(({ monday, runs }) => {
-                      const { total, typeCounts } = weekStats(runs)
-                      return (
-                        <div key={monday.toISOString()} className="mb-6">
-                          <div className="flex items-center justify-between mb-3 bg-zinc-900 rounded-xl px-4 py-3">
-                            <h3 className="text-sm font-semibold text-zinc-100">{weekLabel(monday)}</h3>
-                            <div className="flex items-center gap-3">
-                              <span className="text-xs text-zinc-400">{Math.round(total)} mi</span>
-                              <div className="flex gap-1">
-                                {Object.entries(typeCounts).map(([label, count]) => (
-                                  <span key={label} className="text-xs bg-zinc-800 text-zinc-300 rounded-full px-2 py-0.5">
-                                    {count}x
-                                  </span>
+              {/* Add Workout Form */}
+              {showForm && (
+                <div className="card">
+                  <h2 className="text-base font-semibold text-gray-900 mb-4">Plan a Run</h2>
+                  <PlannedRunForm onSubmit={onAddPlan} onCancel={() => setShowForm(false)} />
+                </div>
+              )}
+
+              {/* Loading state */}
+              {loading && (
+                <p className="text-sm text-gray-400 text-center py-16">Loading your plan...</p>
+              )}
+
+              {/* This Week Section */}
+              {!loading && displayedRuns.length > 0 && (
+                <div ref={planRef} className="space-y-4">
+                  <p className="text-xs font-bold tracking-[0.2em] uppercase text-red-500">This Week</p>
+                  {thisWeekRuns.length === 0 ? (
+                    <div className="bg-zinc-950 rounded-2xl p-6 text-center">
+                      <p className="text-sm text-zinc-400">Nothing planned yet — add a workout or create a plan.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {thisWeekRuns.map(run => (
+                        <PlannedRunCard
+                          key={run.id}
+                          run={run}
+                          onDelete={onDelete}
+                          onMarkDone={(r) => setMarkDoneRun(r)}
+                          onEdit={onEdit}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Plan Section */}
+              <div className="space-y-8">
+                {!loading && displayedRuns.length > 0 && (
+                  <>
+                    {upcomingPlannedRuns.length > 0 && (
+                      <div>
+                        <p className="text-xs font-bold tracking-[0.2em] uppercase text-red-500 mb-4">Upcoming</p>
+                        {groupByWeek(upcomingPlannedRuns).map(({ monday, runs }) => {
+                          const { total, typeCounts } = weekStats(runs)
+                          return (
+                            <div key={monday.toISOString()} className="mb-6">
+                              <div className="flex items-center justify-between mb-3 bg-zinc-900 rounded-xl px-4 py-3">
+                                <h3 className="text-sm font-semibold text-zinc-100">{weekLabel(monday)}</h3>
+                                <div className="flex items-center gap-3">
+                                  <span className="text-xs text-zinc-400">{Math.round(total)} mi</span>
+                                  <div className="flex gap-1">
+                                    {Object.entries(typeCounts).map(([label, count]) => (
+                                      <span key={label} className="text-xs bg-zinc-800 text-zinc-300 rounded-full px-2 py-0.5">
+                                        {count}x
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="space-y-3">
+                                {runs.map(run => (
+                                  <PlannedRunCard
+                                    key={run.id}
+                                    run={run}
+                                    onDelete={onDelete}
+                                    onMarkDone={(r) => setMarkDoneRun(r)}
+                                    onEdit={onEdit}
+                                  />
                                 ))}
                               </div>
                             </div>
-                          </div>
-                          <div className="space-y-3">
-                            {runs.map(run => (
+                          )
+                        })}
+                      </div>
+                    )}
+
+                    {pastRuns.length > 0 && (
+                      <div>
+                        <details className="space-y-3">
+                          <summary className="cursor-pointer text-xs font-semibold tracking-[0.2em] uppercase text-zinc-500 hover:text-zinc-400">
+                            {pastRuns.length} Past Run{pastRuns.length !== 1 ? 's' : ''}
+                          </summary>
+                          <div className="space-y-3 mt-3">
+                            {pastRuns.map(run => (
                               <PlannedRunCard
                                 key={run.id}
                                 run={run}
@@ -319,36 +557,14 @@ function LandingPage({ plannedRuns, upcomingRuns, loading, onAddPlan, onMarkDone
                               />
                             ))}
                           </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
-
-                {/* Past runs collapsed section */}
-                {pastRuns.length > 0 && (
-                  <div>
-                    <details className="space-y-3">
-                      <summary className="cursor-pointer text-xs font-semibold tracking-[0.2em] uppercase text-zinc-500 hover:text-zinc-400">
-                        {pastRuns.length} Past Run{pastRuns.length !== 1 ? 's' : ''}
-                      </summary>
-                      <div className="space-y-3">
-                        {pastRuns.map(run => (
-                          <PlannedRunCard
-                            key={run.id}
-                            run={run}
-                            onDelete={onDelete}
-                            onMarkDone={(r) => setMarkDoneRun(r)}
-                            onEdit={onEdit}
-                          />
-                        ))}
+                        </details>
                       </div>
-                    </details>
-                  </div>
+                    )}
+                  </>
                 )}
-              </>
-            )}
-          </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </>
@@ -668,13 +884,11 @@ function scoredWeeklyMileage(runs) {
   const today = new Date()
   const toMiles = r => r.distanceUnit === 'km' ? r.distance / 1.60934 : r.distance
 
-  // Get weekly totals for the last 36 weeks
-  const weeklyTotals = {} // key = "YYYY-WW"
+  const weeklyTotals = {}
   runs.forEach(r => {
     const d = new Date(r.date + 'T00:00:00')
-    const weekAgo = (new Date(today) - d) / (7 * 86400000) // weeks ago
+    const weekAgo = (new Date(today) - d) / (7 * 86400000)
     if (weekAgo > 36) return
-    // Get ISO week key (Monday-based)
     const mon = new Date(d)
     const day = d.getDay()
     mon.setDate(d.getDate() - (day === 0 ? 6 : day - 1))
@@ -682,7 +896,7 @@ function scoredWeeklyMileage(runs) {
     weeklyTotals[key] = (weeklyTotals[key] || 0) + toMiles(r)
   })
 
-  const sortedWeeks = Object.keys(weeklyTotals).sort().reverse() // most recent first
+  const sortedWeeks = Object.keys(weeklyTotals).sort().reverse()
 
   const avg = (n) => {
     const weeks = sortedWeeks.slice(0, n)
@@ -703,11 +917,9 @@ function Step4FitnessAssessment({ data, setData, runs, prs }) {
   const scoredMileage = scoredWeeklyMileage(runs)
   const peakMileage = data.peakMileage || 50
 
-  // Calculate current VDOT
   const vdotData = calculateCurrentVDOT(prs, runs)
   const currentVdot = vdotData ? vdotData.vdot : null
 
-  // Calculate goal VDOT from race time
   let goalVdot = null
   if (data.goalTime && data.raceDistance) {
     goalVdot = parseFloat(estimateVdotFromGoalTime(data.goalTime, data.raceDistance))
@@ -912,8 +1124,8 @@ function Step5PreviewGenerate({ data, runs, prs }) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function TrainingPlan() {
-  const { plannedRuns, upcomingRuns, loading, addPlannedRun, removePlannedRun, editPlannedRun } = usePlannedRunsDb()
-  const { addPlan } = usePlansDb()
+  const { plannedRuns, upcomingRuns, loading, addPlannedRun, removePlannedRun, removeRunsByPlanId, editPlannedRun } = usePlannedRunsDb()
+  const { plans, loading: plansLoading, addPlan, removePlanWithRuns } = usePlansDb()
   const { runs } = useRunningLogDb()
   const { addRun } = useRunningLogDb()
   const { prs, checkAndUpdatePR } = usePersonalRecordsDb()
@@ -934,8 +1146,13 @@ export default function TrainingPlan() {
     saveToProfile: true,
   })
   const [generating, setGenerating] = useState(false)
+  const [saveError, setSaveError] = useState(null)
   const [conflictState, setConflictState] = useState(null) // { runs, conflicts }
   const [conflictModalOpen, setConflictModalOpen] = useState(false)
+
+  // Plan management state
+  const [view, setView] = useState('schedule')
+  const [selectedPlanId, setSelectedPlanId] = useState(null)
 
   const handleAddPlan = async (data) => {
     await addPlannedRun(data)
@@ -955,6 +1172,12 @@ export default function TrainingPlan() {
     setEditingPlanned(null)
   }
 
+  const handleDeletePlan = async (planId) => {
+    await removePlanWithRuns(planId)
+    removeRunsByPlanId(planId)
+    if (selectedPlanId === planId) setSelectedPlanId(null)
+  }
+
   const openWizard = () => {
     setWizardStep(1)
     setWizardData({
@@ -964,11 +1187,13 @@ export default function TrainingPlan() {
       vdotApproach: 'progressive',
       saveToProfile: true,
     })
+    setSaveError(null)
     setWizardOpen(true)
   }
 
   const closeWizard = () => {
     setWizardOpen(false)
+    setSaveError(null)
   }
 
   const canProceedToNext = () => {
@@ -980,116 +1205,9 @@ export default function TrainingPlan() {
     return false
   }
 
-  const handleGeneratePlan = async () => {
-    if (generating) return
-    setGenerating(true)
-
-    try {
-      // Save goal and race only if saveToProfile is true
-      if (wizardData.saveToProfile) {
-        if (wizardData.goalTime && wizardData.raceDistance) {
-          const goalVdot = parseFloat(estimateVdotFromGoalTime(wizardData.goalTime, wizardData.raceDistance))
-          await setGoal(goalVdot, wizardData.raceDistance, wizardData.goalTime)
-        }
-
-        if (wizardData.newRaceAdded && wizardData.raceName && wizardData.raceDate && wizardData.raceDistance) {
-          await addRace({
-            name: wizardData.raceName,
-            date: wizardData.raceDate,
-            eventType: wizardData.raceDistance,
-            notes: '',
-          })
-        }
-      }
-
-      // If user entered a recent race for VDOT
-      let effectiveVdot = null
-      if (wizardData.recentRaceTime && wizardData.recentRaceDist && wizardData.recentRaceDate) {
-        const parts = wizardData.recentRaceTime.split(':')
-        const totalSecs = parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60 + parseInt(parts[2])
-        const dists = { '5k': 5000, '10k': 10000, 'half': 21097.5, 'marathon': 42195 }
-        const distMeters = dists[wizardData.recentRaceDist]
-        effectiveVdot = calculateVDOT(distMeters, totalSecs)
-
-        // Save as a run and check for PR
-        const newRun = await addRun({
-          date: wizardData.recentRaceDate,
-          distance: distMeters / 1609.344,
-          distanceUnit: 'mi',
-          duration: totalSecs,
-          workoutType: 'race',
-          notes: `Recent race for VDOT calibration (${wizardData.recentRaceDist})`,
-        })
-        if (newRun) {
-          await checkAndUpdatePR({
-            date: wizardData.recentRaceDate,
-            distance: distMeters / 1609.344,
-            distanceUnit: 'mi',
-            duration: totalSecs,
-            id: newRun.id,
-          })
-        }
-      }
-
-      // Get current VDOT
-      const vdotData = calculateCurrentVDOT(prs, runs)
-      const currentVdot = effectiveVdot || vdotData?.vdot || 45
-
-      // Get goal VDOT
-      let goalVdot = null
-      if (wizardData.goalTime && wizardData.raceDistance) {
-        goalVdot = parseFloat(estimateVdotFromGoalTime(wizardData.goalTime, wizardData.raceDistance))
-      }
-
-      // Generate the plan
-      const planRaceDistance = wizardData.raceDistance || 'marathon'
-      const planRaceDate = wizardData.raceDate || new Date(Date.now() + 18 * 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
-
-      // Determine mileage level from coach style
-      let mileageLevel = 'intermediate'
-      if (wizardData.planStyle === 'coach') {
-        if (wizardData.coachStyle === 'pfitzinger') mileageLevel = 'advanced'
-        else if (wizardData.coachStyle === 'daniels') mileageLevel = 'intermediate'
-        else mileageLevel = 'beginner'
-      }
-
-      const generatedRuns = generatePlan({
-        raceDistance: planRaceDistance,
-        raceDate: planRaceDate,
-        currentVdot,
-        mileageLevel,
-        daysPerWeek: wizardData.daysPerWeek || 5,
-        startingMileage: wizardData.startingMileage,
-        peakMileage: wizardData.peakMileage,
-        vdotApproach: wizardData.vdotApproach,
-        goalVdot,
-      })
-
-      // Check for conflicts with existing planned runs
-      const planStartDate = generatedRuns[0]?.date
-      const planEndDate = generatedRuns[generatedRuns.length - 1]?.date
-      const existingConflicts = plannedRuns.filter(
-        r => r.date >= planStartDate && r.date <= planEndDate
-      )
-
-      if (existingConflicts.length > 0) {
-        setConflictState({ runs: generatedRuns, conflicts: existingConflicts })
-        setConflictModalOpen(true)
-        setGenerating(false)
-        return
-      }
-
-      // No conflicts — create plan entity then insert runs
-      await insertPlanWithRuns(generatedRuns)
-      closeWizard()
-    } catch (err) {
-      console.error('Error generating plan:', err)
-    } finally {
-      setGenerating(false)
-    }
-  }
-
-  // Helper: creates a plan record then bulk-inserts all runs with planId attached
+  // Helper: creates a plan record then bulk-inserts all runs with planId attached.
+  // Errors from addPlan are logged but don't block run insertion.
+  // Errors from addPlannedRun propagate up so callers can catch and surface them.
   const insertPlanWithRuns = async (runsToInsert) => {
     const raceDists = { '5k': '5K', '10k': '10K', half: 'Half Marathon', marathon: 'Marathon' }
     const planName = wizardData.raceName
@@ -1110,8 +1228,9 @@ export default function TrainingPlan() {
           : null,
       })
       planId = plan?.id || null
-    } catch {
-      // Plans table may not exist yet — degrade gracefully
+    } catch (e) {
+      // Plan record failed — log it, but continue inserting runs without a plan association
+      console.error('Plan record creation failed (runs will still be saved):', e)
     }
 
     for (const run of runsToInsert) {
@@ -1123,9 +1242,111 @@ export default function TrainingPlan() {
     }
   }
 
+  const handleGeneratePlan = async () => {
+    if (generating) return
+    setGenerating(true)
+    setSaveError(null)
+
+    try {
+      if (wizardData.saveToProfile) {
+        if (wizardData.goalTime && wizardData.raceDistance) {
+          const goalVdot = parseFloat(estimateVdotFromGoalTime(wizardData.goalTime, wizardData.raceDistance))
+          await setGoal(goalVdot, wizardData.raceDistance, wizardData.goalTime)
+        }
+
+        if (wizardData.newRaceAdded && wizardData.raceName && wizardData.raceDate && wizardData.raceDistance) {
+          await addRace({
+            name: wizardData.raceName,
+            date: wizardData.raceDate,
+            eventType: wizardData.raceDistance,
+            notes: '',
+          })
+        }
+      }
+
+      let effectiveVdot = null
+      if (wizardData.recentRaceTime && wizardData.recentRaceDist && wizardData.recentRaceDate) {
+        const parts = wizardData.recentRaceTime.split(':')
+        const totalSecs = parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60 + parseInt(parts[2])
+        const dists = { '5k': 5000, '10k': 10000, 'half': 21097.5, 'marathon': 42195 }
+        const distMeters = dists[wizardData.recentRaceDist]
+        effectiveVdot = calculateVDOT(distMeters, totalSecs)
+
+        const newRun = await addRun({
+          date: wizardData.recentRaceDate,
+          distance: distMeters / 1609.344,
+          distanceUnit: 'mi',
+          duration: totalSecs,
+          workoutType: 'race',
+          notes: `Recent race for VDOT calibration (${wizardData.recentRaceDist})`,
+        })
+        if (newRun) {
+          await checkAndUpdatePR({
+            date: wizardData.recentRaceDate,
+            distance: distMeters / 1609.344,
+            distanceUnit: 'mi',
+            duration: totalSecs,
+            id: newRun.id,
+          })
+        }
+      }
+
+      const vdotData = calculateCurrentVDOT(prs, runs)
+      const currentVdot = effectiveVdot || vdotData?.vdot || 45
+
+      let goalVdot = null
+      if (wizardData.goalTime && wizardData.raceDistance) {
+        goalVdot = parseFloat(estimateVdotFromGoalTime(wizardData.goalTime, wizardData.raceDistance))
+      }
+
+      const planRaceDistance = wizardData.raceDistance || 'marathon'
+      const planRaceDate = wizardData.raceDate || new Date(Date.now() + 18 * 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+
+      let mileageLevel = 'intermediate'
+      if (wizardData.planStyle === 'coach') {
+        if (wizardData.coachStyle === 'pfitzinger') mileageLevel = 'advanced'
+        else if (wizardData.coachStyle === 'daniels') mileageLevel = 'intermediate'
+        else mileageLevel = 'beginner'
+      }
+
+      const generatedRuns = generatePlan({
+        raceDistance: planRaceDistance,
+        raceDate: planRaceDate,
+        currentVdot,
+        mileageLevel,
+        daysPerWeek: wizardData.daysPerWeek || 5,
+        startingMileage: wizardData.startingMileage,
+        peakMileage: wizardData.peakMileage,
+        vdotApproach: wizardData.vdotApproach,
+        goalVdot,
+      })
+
+      const planStartDate = generatedRuns[0]?.date
+      const planEndDate = generatedRuns[generatedRuns.length - 1]?.date
+      const existingConflicts = plannedRuns.filter(
+        r => r.date >= planStartDate && r.date <= planEndDate
+      )
+
+      if (existingConflicts.length > 0) {
+        setConflictState({ runs: generatedRuns, conflicts: existingConflicts })
+        setConflictModalOpen(true)
+        return // generating is set to false in finally
+      }
+
+      await insertPlanWithRuns(generatedRuns)
+      closeWizard()
+    } catch (err) {
+      console.error('Error generating plan:', err)
+      setSaveError(`Failed to save plan: ${err?.message || 'Unknown error'}`)
+    } finally {
+      setGenerating(false)
+    }
+  }
+
   const handleResolveConflict = async (replaceExisting) => {
     if (!conflictState) return
     setGenerating(true)
+    setSaveError(null)
     try {
       if (replaceExisting) {
         for (const run of conflictState.conflicts) {
@@ -1133,13 +1354,15 @@ export default function TrainingPlan() {
         }
       }
       await insertPlanWithRuns(conflictState.runs)
-    } catch (err) {
-      console.error('Error resolving conflict:', err)
-    } finally {
-      setGenerating(false)
+      // Only close if everything succeeded
       setConflictModalOpen(false)
       setConflictState(null)
       closeWizard()
+    } catch (err) {
+      console.error('Error resolving conflict:', err)
+      setSaveError(`Failed to save plan: ${err?.message || 'Unknown error'}`)
+    } finally {
+      setGenerating(false)
     }
   }
 
@@ -1158,6 +1381,13 @@ export default function TrainingPlan() {
         setMarkDoneRun={setMarkDoneRun}
         showForm={showForm}
         setShowForm={setShowForm}
+        view={view}
+        setView={setView}
+        plans={plans}
+        plansLoading={plansLoading}
+        selectedPlanId={selectedPlanId}
+        onSelectPlan={setSelectedPlanId}
+        onDeletePlan={handleDeletePlan}
       />
 
       {/* Edit Modal */}
@@ -1192,7 +1422,6 @@ export default function TrainingPlan() {
       {wizardOpen && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6">
-            {/* Close button */}
             <button
               onClick={closeWizard}
               className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-2xl"
@@ -1207,6 +1436,13 @@ export default function TrainingPlan() {
             {wizardStep === 3 && <Step3TrainingPrefs data={wizardData} setData={setWizardData} />}
             {wizardStep === 4 && <Step4FitnessAssessment data={wizardData} setData={setWizardData} runs={runs} prs={prs} />}
             {wizardStep === 5 && <Step5PreviewGenerate data={wizardData} runs={runs} prs={prs} />}
+
+            {/* Save error */}
+            {saveError && wizardOpen && (
+              <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-xl">
+                <p className="text-sm text-red-700">{saveError}</p>
+              </div>
+            )}
 
             <div className="flex gap-3 mt-8 pt-6 border-t border-gray-200">
               {wizardStep > 1 && (
@@ -1263,6 +1499,13 @@ export default function TrainingPlan() {
               Replace the existing runs or keep both?
             </p>
 
+            {/* Error in conflict modal */}
+            {saveError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl">
+                <p className="text-sm text-red-700">{saveError}</p>
+              </div>
+            )}
+
             <div className="flex flex-col gap-3">
               <button
                 onClick={() => handleResolveConflict(true)}
@@ -1279,7 +1522,7 @@ export default function TrainingPlan() {
                 Keep both
               </button>
               <button
-                onClick={() => { setConflictModalOpen(false); setConflictState(null) }}
+                onClick={() => { setConflictModalOpen(false); setConflictState(null); setSaveError(null) }}
                 disabled={generating}
                 className="w-full px-4 py-2 text-gray-500 text-sm hover:text-gray-700"
               >

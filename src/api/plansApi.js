@@ -55,3 +55,21 @@ export async function deletePlan(id) {
 
   if (error) throw error
 }
+
+export async function deletePlanWithRuns(planId) {
+  // Delete all planned_runs belonging to this plan first
+  const { error: runsError } = await supabase
+    .from('planned_runs')
+    .delete()
+    .eq('plan_id', planId)
+
+  if (runsError) throw runsError
+
+  // Then delete the plan itself
+  const { error } = await supabase
+    .from('plans')
+    .delete()
+    .eq('id', planId)
+
+  if (error) throw error
+}

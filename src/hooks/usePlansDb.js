@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../context/AuthContext.jsx'
-import { fetchPlans, insertPlan, deletePlan } from '../api/plansApi.js'
+import { fetchPlans, insertPlan, deletePlan, deletePlanWithRuns } from '../api/plansApi.js'
 
 export function usePlansDb() {
   const { user } = useAuth()
@@ -30,5 +30,12 @@ export function usePlansDb() {
     setPlans(prev => prev.filter(p => p.id !== id))
   }, [user])
 
-  return { plans, loading, addPlan, removePlan }
+  // Deletes the plan record AND all its associated planned_runs from DB
+  const removePlanWithRuns = useCallback(async (id) => {
+    if (!user) return
+    await deletePlanWithRuns(id)
+    setPlans(prev => prev.filter(p => p.id !== id))
+  }, [user])
+
+  return { plans, loading, addPlan, removePlan, removePlanWithRuns }
 }
