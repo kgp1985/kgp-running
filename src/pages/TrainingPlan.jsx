@@ -1124,7 +1124,7 @@ function Step5PreviewGenerate({ data, runs, prs }) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function TrainingPlan() {
-  const { plannedRuns, upcomingRuns, loading, addPlannedRun, removePlannedRun, removeRunsByPlanId, editPlannedRun } = usePlannedRunsDb()
+  const { plannedRuns, upcomingRuns, loading, addPlannedRun, removePlannedRun, removeRunsByPlanId, editPlannedRun, refetch } = usePlannedRunsDb()
   const { plans, loading: plansLoading, addPlan, removePlanWithRuns } = usePlansDb()
   const { runs } = useRunningLogDb()
   const { addRun } = useRunningLogDb()
@@ -1334,6 +1334,7 @@ export default function TrainingPlan() {
       }
 
       await insertPlanWithRuns(generatedRuns)
+      await refetch()
       closeWizard()
     } catch (err) {
       console.error('Error generating plan:', err)
@@ -1354,6 +1355,8 @@ export default function TrainingPlan() {
         }
       }
       await insertPlanWithRuns(conflictState.runs)
+      // Refetch from DB to guarantee UI reflects actual state (deletes + inserts)
+      await refetch()
       // Only close if everything succeeded
       setConflictModalOpen(false)
       setConflictState(null)
