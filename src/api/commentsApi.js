@@ -24,13 +24,22 @@ export async function getComments(runId) {
 }
 
 export async function addComment(runId, userId, body) {
+  // Insert the comment
   const { data, error } = await supabase
     .from('run_comments')
     .insert({ run_id: runId, user_id: userId, body })
-    .select('id, run_id, user_id, body, created_at, profiles(display_name, avatar_url)')
+    .select('id, run_id, user_id, body, created_at')
     .single()
   if (error) throw error
-  return data
+
+  // Fetch display name separately (same pattern as getComments — FK is to auth.users, not profiles)
+  const { data: profileData } = await supabase
+    .from('profiles')
+    .select('id, display_name, avatar_url')
+    .eq('id', userId)
+    .single()
+
+  return { ...data, profiles: profileData || null }
 }
 
 export async function deleteComment(commentId) {

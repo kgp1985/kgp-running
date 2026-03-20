@@ -99,10 +99,12 @@ export default function RunPostCard({
     if (showComments && !hasFetchedRef.current) {
       hasFetchedRef.current = true
       setLoadingComments(true)
+      // Safety timeout: if Supabase hangs (e.g. table missing), clear loading after 6s
+      const timeout = setTimeout(() => setLoadingComments(false), 6000)
       getComments(run.id)
         .then(setComments)
         .catch(() => setComments([]))
-        .finally(() => setLoadingComments(false))
+        .finally(() => { clearTimeout(timeout); setLoadingComments(false) })
     }
   }, [showComments, run.id])
 
