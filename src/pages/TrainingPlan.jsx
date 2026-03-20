@@ -399,7 +399,7 @@ function LandingPage({
       {/* ─ View Tabs ─ */}
       {hasContent && (
         <div className="bg-white border-b border-gray-100 sticky top-0 z-20">
-          <div className="max-w-5xl mx-auto px-4 flex">
+          <div className="max-w-5xl mx-auto px-4 flex items-center">
             <button
               onClick={() => setView('schedule')}
               className={`px-4 py-3 text-sm font-semibold border-b-2 mr-1 transition-colors ${
@@ -423,6 +423,36 @@ function LandingPage({
                 <span className="ml-1.5 text-xs text-gray-400 font-normal">{plans.length}</span>
               )}
             </button>
+            {view === 'schedule' && !loading && plannedRuns.length > 0 && (
+              <div className="ml-auto">
+                {deleteAllConfirm ? (
+                  <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-1">
+                    <span className="text-xs text-red-700 font-medium">Delete all planned runs?</span>
+                    <button
+                      onClick={onDeleteAll}
+                      disabled={deletingAll}
+                      className="text-xs font-semibold text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 px-2.5 py-1 rounded transition-colors"
+                    >
+                      {deletingAll ? 'Deleting…' : 'Yes, delete all'}
+                    </button>
+                    <button
+                      onClick={() => setDeleteAllConfirm(false)}
+                      disabled={deletingAll}
+                      className="text-xs font-semibold text-gray-500 hover:text-gray-800 px-2 py-1 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setDeleteAllConfirm(true)}
+                    className="text-xs font-semibold text-gray-400 hover:text-red-500 border border-gray-200 hover:border-red-200 px-3 py-1 rounded transition-colors"
+                  >
+                    Delete all
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -475,38 +505,6 @@ function LandingPage({
                 <div className="card">
                   <h2 className="text-base font-semibold text-gray-900 mb-4">Plan a Run</h2>
                   <PlannedRunForm onSubmit={onAddPlan} onCancel={() => setShowForm(false)} />
-                </div>
-              )}
-
-              {/* Delete All button */}
-              {!loading && plannedRuns.length > 0 && (
-                <div className="flex justify-end">
-                  {deleteAllConfirm ? (
-                    <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-2.5">
-                      <span className="text-sm text-red-700 font-medium">Delete all planned runs?</span>
-                      <button
-                        onClick={onDeleteAll}
-                        disabled={deletingAll}
-                        className="text-xs font-semibold text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 px-3 py-1.5 rounded-lg transition-colors"
-                      >
-                        {deletingAll ? 'Deleting…' : 'Yes, delete all'}
-                      </button>
-                      <button
-                        onClick={() => setDeleteAllConfirm(false)}
-                        disabled={deletingAll}
-                        className="text-xs font-semibold text-gray-500 hover:text-gray-800 px-2 py-1.5 transition-colors"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => setDeleteAllConfirm(true)}
-                      className="text-xs font-semibold text-gray-400 hover:text-red-500 border border-gray-200 hover:border-red-200 px-3 py-1.5 rounded-lg transition-colors"
-                    >
-                      Delete all
-                    </button>
-                  )}
                 </div>
               )}
 

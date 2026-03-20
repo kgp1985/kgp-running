@@ -654,8 +654,6 @@ export default function RunningLog() {
   const [editingRun, setEditingRun] = useState(null)
   const [filters, setFilters]       = useState(DEFAULT_FILTERS)
   const [viewMode, setViewMode]     = useState('spinner')
-  const [gpxStatus, setGpxStatus]   = useState(null)
-  const gpxFileRef                  = useRef(null)
   const { runs, addRun, deleteRun, updateRun, loading } = useRunningLogDb()
   const { checkAndUpdatePR } = usePersonalRecordsDb()
   const { profile } = useProfile()
@@ -670,24 +668,6 @@ export default function RunningLog() {
   const handleUpdateRun = async (runData) => {
     await updateRun(editingRun.id, runData)
     setEditingRun(null)
-  }
-
-  const handleGpxUpload = async (e) => {
-    const file = e.target.files?.[0]
-    if (!file || !user) return
-    setGpxStatus('parsing')
-    try {
-      const { parseGpxFile } = await import('../utils/parseGpx.js')
-      const parsed = await parseGpxFile(file)
-      const { insertGpxPendingRun } = await import('../api/pendingRunsApi.js')
-      await insertGpxPendingRun(user.id, parsed)
-      setGpxStatus('done')
-      setTimeout(() => setGpxStatus(null), 3000)
-    } catch (err) {
-      setGpxStatus('error')
-      console.error('GPX upload error:', err)
-    }
-    gpxFileRef.current.value = ''
   }
 
   const filtered = runs
@@ -741,16 +721,6 @@ export default function RunningLog() {
           )}
         </div>
         <div className="flex items-center gap-2">
-          <button
-            className="flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors"
-            onClick={() => gpxFileRef.current?.click()}
-            disabled={gpxStatus === 'parsing'}
-            title="Upload GPX file"
-          >
-            <span className="text-base">🗺️</span>
-            {gpxStatus === 'parsing' ? 'Uploading…' : gpxStatus === 'done' ? 'Uploaded!' : gpxStatus === 'error' ? 'Error' : 'GPX'}
-          </button>
-          <input ref={gpxFileRef} type="file" accept=".gpx" className="hidden" onChange={handleGpxUpload} />
           <button
             className="btn-primary flex items-center gap-2"
             onClick={() => setShowForm(s => !s)}

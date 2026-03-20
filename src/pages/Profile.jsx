@@ -97,6 +97,8 @@ function AvatarSection({ profile, userId, onAvatarSaved }) {
 // ── Watch Connection Row ───────────────────────────────────────────────────────
 
 function WatchRow({ provider, label, icon, description, connected, connecting, onConnect, onDisconnect }) {
+  const isComingSoon = provider === 'garmin' || provider === 'coros'
+
   return (
     <div className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
       <div className="flex items-center gap-3">
@@ -113,6 +115,10 @@ function WatchRow({ provider, label, icon, description, connected, connecting, o
         >
           Disconnect
         </button>
+      ) : isComingSoon ? (
+        <span className="text-xs font-medium text-gray-400 bg-gray-100 px-3 py-1.5 rounded-lg cursor-default">
+          Coming soon
+        </span>
       ) : (
         <button
           onClick={() => onConnect(provider)}
