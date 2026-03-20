@@ -60,6 +60,15 @@ export async function deletePlannedRun(id) {
   if (error) throw error
 }
 
+export async function deleteAllPlannedRuns(userId) {
+  const { error } = await supabase
+    .from('planned_runs')
+    .delete()
+    .eq('user_id', userId)
+
+  if (error) throw error
+}
+
 export async function updatePlannedRun(id, updates) {
   const dbUpdates = {}
   if (updates.date               !== undefined) dbUpdates.date                 = updates.date

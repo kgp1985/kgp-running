@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 import PageWrapper from '../components/layout/PageWrapper.jsx'
 import RunForm from '../features/log/RunForm.jsx'
 import LogFilters from '../features/log/LogFilters.jsx'
+import BulkImportModal from '../features/import/BulkImportModal.jsx'
 import { useRunningLogDb } from '../hooks/useRunningLogDb.js'
 import { usePersonalRecordsDb } from '../hooks/usePersonalRecordsDb.js'
 import { useProfile } from '../hooks/useProfile.js'
@@ -651,6 +652,7 @@ function HistorySpinner({ runs, onEdit, onDelete }) {
 
 export default function RunningLog() {
   const [showForm, setShowForm]     = useState(false)
+  const [showImport, setShowImport] = useState(false)
   const [editingRun, setEditingRun] = useState(null)
   const [filters, setFilters]       = useState(DEFAULT_FILTERS)
   const [viewMode, setViewMode]     = useState('spinner')
@@ -721,6 +723,12 @@ export default function RunningLog() {
           )}
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowImport(true)}
+            className="flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors"
+          >
+            <span>📥</span> Import
+          </button>
           <button
             className="btn-primary flex items-center gap-2"
             onClick={() => setShowForm(s => !s)}
@@ -817,6 +825,18 @@ export default function RunningLog() {
             />
           </div>
         </div>
+      )}
+
+      {/* Import modal */}
+      {showImport && (
+        <BulkImportModal
+          onClose={() => setShowImport(false)}
+          onImported={() => {
+            setShowImport(false)
+            // Refresh runs list
+            window.location.reload()
+          }}
+        />
       )}
     </PageWrapper>
   )

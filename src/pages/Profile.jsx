@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import PageWrapper from '../components/layout/PageWrapper.jsx'
+import BulkImportModal from '../features/import/BulkImportModal.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useProfile } from '../hooks/useProfile.js'
 import { supabase } from '../lib/supabaseClient.js'
@@ -149,6 +150,8 @@ export default function Profile() {
   const [watchLoading, setWatchLoading]         = useState(true)
   const [connecting, setConnecting]             = useState(null) // provider currently being connected
   const [watchError, setWatchError]             = useState(null)
+
+  const [showImport, setShowImport]     = useState(false)
 
   // Sync display name when profile loads
   useEffect(() => {
@@ -421,6 +424,20 @@ export default function Profile() {
           <GpxFileUploadInline userId={user?.id} />
         </div>
 
+        {/* ── Bulk Import ── */}
+        <div className="card">
+          <h3 className="text-base font-semibold text-gray-900 mb-1">Import Run History</h3>
+          <p className="text-sm text-gray-500 mb-4">
+            Upload .fit, .gpx, or .tcx files from your Garmin, Coros, or GPS watch to bulk-import your past runs.
+          </p>
+          <button
+            onClick={() => setShowImport(true)}
+            className="bg-black text-white font-semibold text-sm px-4 py-2 rounded-xl hover:bg-gray-800 transition-colors"
+          >
+            Import Run History
+          </button>
+        </div>
+
         {/* ── Account ── */}
         <div className="card">
           <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4">Account</h2>
@@ -439,6 +456,14 @@ export default function Profile() {
         </div>
 
       </div>
+
+      {/* Import modal */}
+      {showImport && (
+        <BulkImportModal
+          onClose={() => setShowImport(false)}
+          onImported={() => setShowImport(false)}
+        />
+      )}
     </PageWrapper>
   )
 }

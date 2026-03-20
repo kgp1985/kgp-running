@@ -4,6 +4,7 @@ import {
   fetchPlannedRuns,
   insertPlannedRun,
   deletePlannedRun,
+  deleteAllPlannedRuns,
   updatePlannedRun,
 } from '../api/plannedRunsApi.js'
 
@@ -39,6 +40,12 @@ export function usePlannedRunsDb() {
   const removeRunsByPlanId = useCallback((planId) => {
     setPlannedRuns(prev => prev.filter(r => r.planId !== planId))
   }, [])
+
+  const removeAllRuns = useCallback(async () => {
+    if (!user) return
+    await deleteAllPlannedRuns(user.id)
+    setPlannedRuns([])
+  }, [user])
 
   // Re-fetches all planned runs from DB — returns the data AND updates state.
   // Returns the fresh array so callers can use it immediately without waiting for re-render.
@@ -77,6 +84,7 @@ export function usePlannedRunsDb() {
     addPlannedRun,
     removePlannedRun,
     removeRunsByPlanId,
+    removeAllRuns,
     editPlannedRun,
     getNextDays,
     refetch,
