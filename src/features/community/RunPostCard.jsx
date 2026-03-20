@@ -6,10 +6,18 @@
  *   prs         — this runner's PR map: { 'Marathon': { time, date }, ... }
  *   shoeName    — resolved shoe name or null
  *   currentVdot — runner's current VDOT or null (for ⚡ VDOT signal)
+ *   reactions   — array of reaction objects for this run
+ *   comments    — array of comment objects for this run
+ *   currentUserId — logged-in user's ID
+ *   onReact     — callback(runId, reaction) to handle reaction upsert
+ *   onDeleteComment — callback(commentId) to handle comment deletion
+ *   onAddComment — callback(runId, body) to handle comment addition
  */
+import { useState, useEffect } from 'react'
 import { generateRunTitle } from '../../utils/runTitle.js'
 import { getCelebrations, formatPRLine } from '../../utils/runCelebrations.js'
 import { secondsToTimeStr } from '../../utils/paceCalc.js'
+import { getComments, addComment, deleteComment } from '../../api/commentsApi.js'
 
 // ── Workout type color map (subset — matches workoutTypes.js) ─────────────────
 const TYPE_COLORS = {
@@ -60,13 +68,81 @@ function fmtTime(secs) {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export default function RunPostCard({ run, prs = {}, shoeName = null, currentVdot = null }) {
+export default function RunPostCard({
+  run,
+  prs = {},
+  shoeName = null,
+  currentVdot = null,
+  reactions = [],
+  comments: initialComments = [],
+  currentUserId = null,
+  onReact = null,
+  onDeleteComment = null,
+  onAddComment = null,
+}) {
   const colors    = TYPE_COLORS[run.workoutType] ?? TYPE_COLORS.easy
   const typeLabel = TYPE_LABELS[run.workoutType]  ?? 'Run'
   const title     = generateRunTitle(run)
   const pace      = fmtPace(run)
   const prLine    = formatPRLine(prs)
   const badges    = getCelebrations(run, prs, currentVdot)
+
+  // Local comment state
+  const [showComments, setShowComments] = useState(false)
+  const [comments, setComments] = useState(initialComments)
+  const [commentInput, setCommentInput] = useState('')
+  const [loadingComments, setLoadingComments] = useState(false)
+
+  // Load comments on expand (lazy load)
+  useEffect(() => {
+    if (showComments && comments.length === 0 && !loadingComments) {
+      setLoadingComments(true)
+      getComments(run.id)
+        .then(setComments)
+        .catch(() => setComments([]))
+        .finally(() => setLoadingComments(false))
+    }
+  }, [showComments, run.id, comments.length, loadingComments])
+
+  // Reaction counts
+  const myReaction = reactions.find(r => r.user_id === currentUserId)?.reaction ?? null
+  const hareCount = reactions.filter(r => r.reaction === 'hare').length
+  const turtleCount = reactions.filter(r => r.reaction === 'turtle').length
+  const commentCount = comments.length
+
+  // Handlers
+  const handleReact = async (reaction) => {
+    if (!currentUserId || !onReact) return
+    try {
+      await onReact(run.id, reaction)
+    } catch (err) {
+      console.error('Failed to react:', err)
+    }
+  }
+
+  const handleAddComment = async (e) => {
+    e.preventDefault()
+    if (!commentInput.trim() || !currentUserId || !onAddComment) return
+    const body = commentInput.trim()
+    setCommentInput('')
+    try {
+      const newComment = await onAddComment(run.id, body)
+      setComments(prev => [...prev, newComment])
+    } catch (err) {
+      console.error('Failed to add comment:', err)
+      setCommentInput(body) // restore on error
+    }
+  }
+
+  const handleDeleteComment = async (commentId) => {
+    if (!onDeleteComment) return
+    try {
+      await onDeleteComment(commentId)
+      setComments(prev => prev.filter(c => c.id !== commentId))
+    } catch (err) {
+      console.error('Failed to delete comment:', err)
+    }
+  }
 
   return (
     <article className="card hover:shadow-md transition-shadow duration-150">
@@ -166,6 +242,75 @@ export default function RunPostCard({ run, prs = {}, shoeName = null, currentVdo
         <p className="text-xs text-gray-500 mt-2 leading-relaxed border-t border-gray-100 pt-2">
           {run.notes}
         </p>
+      )}
+
+      {/* ── Reaction row ── */}
+      <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100">
+        <button
+          onClick={() => handleReact('hare')}
+          className={`flex items-center gap-1 text-sm px-2 py-1 rounded-lg transition-colors ${myReaction === 'hare' ? 'bg-amber-50 text-amber-600' : 'text-gray-400 hover:text-gray-700 hover:bg-gray-50'}`}
+          title={currentUserId ? 'Strong effort' : 'Sign in to react'}
+          disabled={!currentUserId}
+        >
+          🐇 <span>{hareCount}</span>
+        </button>
+        <button
+          onClick={() => handleReact('turtle')}
+          className={`flex items-center gap-1 text-sm px-2 py-1 rounded-lg transition-colors ${myReaction === 'turtle' ? 'bg-green-50 text-green-600' : 'text-gray-400 hover:text-gray-700 hover:bg-gray-50'}`}
+          title={currentUserId ? 'Steady pace' : 'Sign in to react'}
+          disabled={!currentUserId}
+        >
+          🐢 <span>{turtleCount}</span>
+        </button>
+        <button
+          onClick={() => setShowComments(c => !c)}
+          className="ml-auto text-xs text-gray-400 hover:text-gray-600"
+        >
+          💬 {commentCount} {showComments ? '▲' : '▼'}
+        </button>
+      </div>
+
+      {/* ── Comments section (collapsible) ── */}
+      {showComments && (
+        <div className="mt-3 space-y-2">
+          {loadingComments ? (
+            <p className="text-xs text-gray-400">Loading comments…</p>
+          ) : (
+            <>
+              {comments.map(c => (
+                <div key={c.id} className="flex gap-2 text-sm items-start">
+                  <span className="font-medium text-gray-700 shrink-0">{c.profiles?.display_name || 'Runner'}</span>
+                  <span className="text-gray-600 flex-1">{c.body}</span>
+                  {c.user_id === currentUserId && (
+                    <button
+                      onClick={() => handleDeleteComment(c.id)}
+                      className="ml-auto text-gray-300 hover:text-red-400 text-xs shrink-0"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              ))}
+              {currentUserId && (
+                <form onSubmit={handleAddComment} className="flex gap-2 mt-2 pt-2 border-t border-gray-100">
+                  <input
+                    value={commentInput}
+                    onChange={e => setCommentInput(e.target.value)}
+                    placeholder="Add a comment…"
+                    className="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:border-gray-400"
+                  />
+                  <button
+                    type="submit"
+                    disabled={!commentInput.trim()}
+                    className="text-sm font-medium text-black px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors disabled:opacity-40"
+                  >
+                    Post
+                  </button>
+                </form>
+              )}
+            </>
+          )}
+        </div>
       )}
     </article>
   )
