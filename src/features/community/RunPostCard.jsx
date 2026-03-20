@@ -13,7 +13,7 @@
  *   onDeleteComment — callback(commentId) to handle comment deletion
  *   onAddComment — callback(runId, body) to handle comment addition
  */
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { generateRunTitle } from '../../utils/runTitle.js'
 import { getCelebrations, formatPRLine } from '../../utils/runCelebrations.js'
 import { secondsToTimeStr } from '../../utils/paceCalc.js'
@@ -92,17 +92,19 @@ export default function RunPostCard({
   const [comments, setComments] = useState(initialComments)
   const [commentInput, setCommentInput] = useState('')
   const [loadingComments, setLoadingComments] = useState(false)
+  const hasFetchedRef = useRef(false)
 
-  // Load comments on expand (lazy load)
+  // Load comments on first expand (lazy load — fetch once, track with ref to avoid loop)
   useEffect(() => {
-    if (showComments && comments.length === 0 && !loadingComments) {
+    if (showComments && !hasFetchedRef.current) {
+      hasFetchedRef.current = true
       setLoadingComments(true)
       getComments(run.id)
         .then(setComments)
         .catch(() => setComments([]))
         .finally(() => setLoadingComments(false))
     }
-  }, [showComments, run.id, comments.length, loadingComments])
+  }, [showComments, run.id])
 
   // Reaction counts
   const myReaction = reactions.find(r => r.user_id === currentUserId)?.reaction ?? null
