@@ -819,7 +819,7 @@ function Step3TrainingPrefs({ data, setData }) {
     3: 'Mon · Thu · Sun — great for beginners or athletes balancing other sports.',
     4: 'Mon · Wed · Sat · Sun — solid base with one quality session per week.',
     5: 'Mon · Tue · Thu · Sat · Sun — two quality sessions plus comfortable easy mileage.',
-    6: 'Mon–Wed · Fri–Sun — high volume with a mid-week medium-long run for marathon training.',
+    6: 'Tue–Sun, rest Mon — high volume with a mid-week MLR on Thursday for marathon training.',
     7: 'Daily running — advanced runners only. Full quality and volume schedule.',
   }
 
@@ -841,8 +841,17 @@ function Step3TrainingPrefs({ data, setData }) {
             className="input flex-1 text-center"
             min={15}
             max={120}
-            value={data.peakMileage || 50}
-            onChange={(e) => setData({ ...data, peakMileage: parseInt(e.target.value) || 50 })}
+            value={data.peakMileage ?? ''}
+            placeholder="50"
+            onChange={(e) => {
+              const raw = e.target.value
+              if (raw === '') {
+                setData({ ...data, peakMileage: null })
+              } else {
+                const parsed = parseInt(raw)
+                if (!isNaN(parsed)) setData({ ...data, peakMileage: parsed })
+              }
+            }}
           />
           <button
             onClick={() => setData({ ...data, peakMileage: Math.min(120, (data.peakMileage || 50) + 5) })}
@@ -1323,7 +1332,11 @@ export default function TrainingPlan() {
 
       const planStartDate = generatedRuns[0]?.date
       const planEndDate = generatedRuns[generatedRuns.length - 1]?.date
-      const existingConflicts = plannedRuns.filter(
+
+      // Fetch fresh runs from DB right now — don't rely on closed-over state
+      // which may be stale if the component hasn't re-rendered since the last save.
+      const freshRuns = await refetch()
+      const existingConflicts = (freshRuns || []).filter(
         r => r.date >= planStartDate && r.date <= planEndDate
       )
 

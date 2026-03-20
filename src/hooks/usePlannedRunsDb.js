@@ -40,11 +40,13 @@ export function usePlannedRunsDb() {
     setPlannedRuns(prev => prev.filter(r => r.planId !== planId))
   }, [])
 
-  // Re-fetches all planned runs from DB — use after bulk operations to ensure state matches DB
+  // Re-fetches all planned runs from DB — returns the data AND updates state.
+  // Returns the fresh array so callers can use it immediately without waiting for re-render.
   const refetch = useCallback(async () => {
-    if (!user) return
+    if (!user) return []
     const data = await fetchPlannedRuns(user.id)
     setPlannedRuns(data)
+    return data
   }, [user])
 
   const editPlannedRun = useCallback(async (id, updates) => {

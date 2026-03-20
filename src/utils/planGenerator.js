@@ -149,7 +149,7 @@ const DAY_SCHEDULES = {
   3: [0, 3, 6],              // Mon, Thu, Sun
   4: [0, 2, 5, 6],           // Mon, Wed, Sat, Sun
   5: [0, 1, 3, 5, 6],        // Mon, Tue, Thu, Sat, Sun
-  6: [0, 1, 2, 4, 5, 6],     // Mon, Tue, Wed, Fri, Sat, Sun
+  6: [1, 2, 3, 4, 5, 6],     // Tue, Wed, Thu, Fri, Sat, Sun (rest Mon)
   7: [0, 1, 2, 3, 4, 5, 6],  // All days
 }
 
