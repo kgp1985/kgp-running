@@ -5,6 +5,155 @@ import { parseTcxFile } from '../../utils/parseTcx'
 import { parseGpxString } from '../../utils/parseGpx'
 import { bulkInsertRuns } from '../../api/bulkRunsApi'
 
+const WATCH_GUIDES = [
+  {
+    brand: 'Garmin',
+    icon: '⌚',
+    format: '.FIT',
+    steps: [
+      'Connect your Garmin watch to your computer with its charging/data cable.',
+      'The watch appears as a drive on your computer — open it like a USB stick.',
+      'Navigate to the folder: GARMIN → Activity',
+      'Select all files inside (Ctrl+A on Windows, Cmd+A on Mac).',
+      'Drag them directly into the upload box above — done.',
+    ],
+    tip: 'This folder contains every activity ever recorded on the watch, so you can import your full history in one go.',
+  },
+  {
+    brand: 'Coros',
+    icon: '🏃',
+    format: '.FIT',
+    steps: [
+      'On your computer, go to training.coros.com and log in.',
+      'Click Workouts in the left sidebar.',
+      'Check the box in the top-left to select all activities.',
+      'Click Export → select FIT format → click Download.',
+      'Unzip the downloaded folder, then drag all files into the upload box above.',
+    ],
+    tip: 'The exported zip will contain one FIT file per activity — select them all after unzipping.',
+  },
+  {
+    brand: 'Polar',
+    icon: '🔵',
+    format: '.GPX or .TCX',
+    steps: [
+      'Go to flow.polar.com and log in.',
+      'Click Training → Training Log.',
+      'Open an activity, scroll to the bottom, and click Export.',
+      'Choose GPX or TCX format and save the file.',
+      'Repeat for each run, then drag all exported files into the upload box above.',
+    ],
+    tip: 'Polar exports one activity at a time. Use the calendar view to quickly open each run.',
+  },
+  {
+    brand: 'Suunto',
+    icon: '🔴',
+    format: '.GPX',
+    steps: [
+      'Go to www.suunto.com and log into your account.',
+      'Click on an activity from your diary.',
+      'Click the three-dot menu (⋯) → Export → GPX.',
+      'Save the file, then repeat for each run.',
+      'Drag all exported files into the upload box above.',
+    ],
+    tip: 'Suunto exports one at a time. If you have a large history, set aside a few minutes to export in batches.',
+  },
+]
+
+function IdlePhase({ dragging, fileRef, handleDrop, handleDragOver, handleDragLeave, handleFileInput }) {
+  const [guideOpen, setGuideOpen] = useState(false)
+  const [activeTab, setActiveTab] = useState('Garmin')
+
+  const active = WATCH_GUIDES.find(g => g.brand === activeTab)
+
+  return (
+    <>
+      <h2 className="text-2xl font-bold text-white mb-2">Import Runs</h2>
+      <p className="text-sm text-zinc-400 mb-6">
+        Upload .fit, .gpx, or .tcx files from your GPS watch to import your full run history at once.
+      </p>
+
+      {/* Drop zone */}
+      <label
+        onDrop={handleDrop}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        className={`block border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-colors ${
+          dragging ? 'border-white/60 bg-white/10' : 'border-zinc-700 hover:border-zinc-500'
+        }`}
+      >
+        <input
+          ref={fileRef}
+          type="file"
+          multiple
+          accept=".fit,.gpx,.tcx"
+          className="hidden"
+          onChange={handleFileInput}
+        />
+        <p className="text-3xl mb-2">📤</p>
+        <p className="text-sm font-semibold text-white">
+          {dragging ? 'Drop files here' : 'Drag files here or click to select'}
+        </p>
+        <p className="text-xs text-zinc-500 mt-1">
+          .fit · .gpx · .tcx — select as many as you like
+        </p>
+      </label>
+
+      {/* How-to guide toggle */}
+      <button
+        onClick={() => setGuideOpen(o => !o)}
+        className="mt-4 flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-300 transition-colors w-full"
+      >
+        <span>{guideOpen ? '▾' : '▸'}</span>
+        <span>How do I get files from my watch?</span>
+      </button>
+
+      {guideOpen && (
+        <div className="mt-3 bg-zinc-900 rounded-xl overflow-hidden">
+          {/* Brand tabs */}
+          <div className="flex border-b border-zinc-800">
+            {WATCH_GUIDES.map(g => (
+              <button
+                key={g.brand}
+                onClick={() => setActiveTab(g.brand)}
+                className={`flex-1 py-2 text-xs font-semibold transition-colors ${
+                  activeTab === g.brand
+                    ? 'text-white border-b-2 border-white'
+                    : 'text-zinc-500 hover:text-zinc-300'
+                }`}
+              >
+                {g.icon} {g.brand}
+              </button>
+            ))}
+          </div>
+
+          {/* Steps */}
+          <div className="p-4">
+            <p className="text-[10px] font-bold tracking-widest uppercase text-zinc-500 mb-3">
+              Exports as {active.format}
+            </p>
+            <ol className="space-y-2">
+              {active.steps.map((step, i) => (
+                <li key={i} className="flex gap-3 text-xs text-zinc-300 leading-relaxed">
+                  <span className="w-4 h-4 rounded-full bg-zinc-800 text-zinc-400 flex items-center justify-center shrink-0 text-[10px] font-bold mt-0.5">
+                    {i + 1}
+                  </span>
+                  {step}
+                </li>
+              ))}
+            </ol>
+            {active.tip && (
+              <p className="mt-3 text-[11px] text-zinc-500 italic border-t border-zinc-800 pt-3">
+                💡 {active.tip}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
 export default function BulkImportModal({ onClose, onImported }) {
   const { user } = useAuth()
   const [phase, setPhase] = useState('idle') // idle | parsing | done
@@ -104,41 +253,14 @@ export default function BulkImportModal({ onClose, onImported }) {
         </button>
 
         {phase === 'idle' && (
-          <>
-            <h2 className="text-2xl font-bold text-white mb-2">Import Runs</h2>
-            <p className="text-sm text-zinc-400 mb-6">
-              Drag and drop or select .fit, .gpx, and .tcx files to bulk-import your run history.
-            </p>
-
-            <label
-              onDrop={handleDrop}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              className={`border-2 border-dashed rounded-xl p-12 text-center cursor-pointer transition-colors ${
-                dragging
-                  ? 'border-white/60 bg-white/10'
-                  : 'border-zinc-700 hover:border-zinc-500'
-              }`}
-            >
-              <input
-                ref={fileRef}
-                type="file"
-                multiple
-                accept=".fit,.gpx,.tcx"
-                className="hidden"
-                onChange={handleFileInput}
-              />
-              <div>
-                <p className="text-3xl mb-2">📤</p>
-                <p className="text-sm font-semibold text-white">
-                  {dragging ? 'Drop files here' : 'Drag files here or click to select'}
-                </p>
-                <p className="text-xs text-zinc-400 mt-2">
-                  Supports Garmin, Coros, Strava, and other GPS watch exports
-                </p>
-              </div>
-            </label>
-          </>
+          <IdlePhase
+            dragging={dragging}
+            fileRef={fileRef}
+            handleDrop={handleDrop}
+            handleDragOver={handleDragOver}
+            handleDragLeave={handleDragLeave}
+            handleFileInput={handleFileInput}
+          />
         )}
 
         {phase === 'parsing' && (
