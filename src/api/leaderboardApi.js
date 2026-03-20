@@ -30,13 +30,11 @@ export async function getMileageLeaders(period = 'month') {
     .map(u => ({ ...u, miles: Math.round(u.miles * 10) / 10 }))
 }
 
-// Fastest event times — looks for runs matching event distances in workout_type = 'key_race' or distance ranges
+// Fastest event times — scans all runs within standard race distance ranges
 export async function getFastestEventTimes() {
-  // Fetch key race runs from public profiles
   const { data, error } = await supabase
     .from('runs')
-    .select('id, user_id, date, distance, distance_unit, duration, workout_type, profiles(display_name, is_public)')
-    .eq('workout_type', 'key_race')
+    .select('id, user_id, date, distance, distance_unit, duration, profiles(display_name, is_public)')
     .not('duration', 'is', null)
     .gt('duration', 0)
 

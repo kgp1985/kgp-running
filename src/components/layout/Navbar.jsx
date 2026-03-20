@@ -3,6 +3,7 @@ import { NavLink, Link } from 'react-router-dom'
 import { ROUTES } from '../../constants/routes.js'
 import { useAuth } from '../../context/AuthContext.jsx'
 import { useProfile } from '../../hooks/useProfile.js'
+import { getPendingRequests } from '../../api/friendsApi.js'
 
 const NAV_LINKS = [
   { to: ROUTES.HOME,       label: 'Home' },
@@ -93,9 +94,19 @@ function ProfileDropdown({ user, profile, signOut }) {
 }
 
 export default function Navbar() {
-  const [mobileOpen, setMobileOpen] = useState(false)
-  const { user, signOut }           = useAuth()
-  const { profile }                 = useProfile()
+  const [mobileOpen, setMobileOpen]         = useState(false)
+  const [pendingCount, setPendingCount]     = useState(0)
+  const { user, signOut }                   = useAuth()
+  const { profile }                         = useProfile()
+
+  // Poll for pending friend requests every 60s
+  useEffect(() => {
+    if (!user) { setPendingCount(0); return }
+    const check = () => getPendingRequests(user.id).then(r => setPendingCount(r.length)).catch(() => {})
+    check()
+    const id = setInterval(check, 60_000)
+    return () => clearInterval(id)
+  }, [user])
 
   const linkClass = ({ isActive }) =>
     isActive
@@ -119,7 +130,12 @@ export default function Navbar() {
         <div className="hidden sm:flex items-center gap-6 text-sm">
           {NAV_LINKS.map(({ to, label }) => (
             <NavLink key={to} to={to} end={to === ROUTES.HOME} className={linkClass}>
-              {label}
+              {label === 'Community' && pendingCount > 0 ? (
+                <span className="relative inline-flex items-center gap-1">
+                  Community
+                  <span className="absolute -top-1 -right-2.5 w-2 h-2 bg-red-500 rounded-full" />
+                </span>
+              ) : label}
             </NavLink>
           ))}
           {/* Auth */}
@@ -156,7 +172,12 @@ export default function Navbar() {
               className={mobileLinkClass}
               onClick={() => setMobileOpen(false)}
             >
-              {label}
+              {label === 'Community' && pendingCount > 0 ? (
+                <span className="relative inline-flex items-center gap-1">
+                  Community
+                  <span className="absolute -top-1 -right-2.5 w-2 h-2 bg-red-500 rounded-full" />
+                </span>
+              ) : label}
             </NavLink>
           ))}
           {user ? (
