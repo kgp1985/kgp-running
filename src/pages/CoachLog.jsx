@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import PageWrapper from '../components/layout/PageWrapper.jsx'
 import RunPostCard from '../features/community/RunPostCard.jsx'
+import LeaderboardWidget from '../features/community/LeaderboardWidget.jsx'
+import ChallengeSection from '../features/community/ChallengeSection.jsx'
 import { useCommunityFeed } from '../hooks/useCommunityFeed.js'
 import { useProfile } from '../hooks/useProfile.js'
 import { usePersonalRecordsDb } from '../hooks/usePersonalRecordsDb.js'
@@ -416,6 +418,9 @@ export default function CommunityFeed() {
       {/* ── WORLD VIEW TAB ── */}
       {communityTab === 'world' && (
         <>
+          {/* ── Leaderboard Widget ── */}
+          <LeaderboardWidget />
+
           {/* ── Filter chips ── */}
           {presentTypes.length > 1 && (
             <div className="flex flex-wrap gap-2 mb-5">
@@ -506,6 +511,11 @@ export default function CommunityFeed() {
       {/* ── RUN CLUB TAB ── */}
       {communityTab === 'club' && user && (
         <>
+          {/* ── Challenges Section ── */}
+          <div className="card mb-6">
+            <ChallengeSection user={user} friends={friends} />
+          </div>
+
           {/* ── Friend Management Section ── */}
           <div className="card mb-6">
             <h2 className="text-sm font-semibold text-gray-900 mb-4">Find Runners</h2>

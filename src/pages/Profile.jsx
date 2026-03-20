@@ -5,6 +5,7 @@ import BulkImportModal from '../features/import/BulkImportModal.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useProfile } from '../hooks/useProfile.js'
 import { supabase } from '../lib/supabaseClient.js'
+import { getUserAwards } from '../api/awardsApi.js'
 import {
   fetchWatchConnections,
   connectGarmin,
@@ -151,6 +152,8 @@ export default function Profile() {
   const [connecting, setConnecting]             = useState(null) // provider currently being connected
   const [watchError, setWatchError]             = useState(null)
 
+  const [awards, setAwards]                     = useState([])
+
   const [showImport, setShowImport]     = useState(false)
 
   // Sync display name when profile loads
@@ -166,6 +169,14 @@ export default function Profile() {
       .then(setWatchConnections)
       .catch(console.error)
       .finally(() => setWatchLoading(false))
+  }, [user])
+
+  // Load awards
+  useEffect(() => {
+    if (!user) return
+    getUserAwards(user.id)
+      .then(setAwards)
+      .catch(console.error)
   }, [user])
 
   // Handle OAuth callbacks from Garmin / Coros redirects
@@ -404,6 +415,22 @@ export default function Profile() {
             </div>
           )}
         </div>
+
+        {/* ── Awards Shelf ── */}
+        {awards.length > 0 && (
+          <div className="card">
+            <h2 className="text-sm font-semibold text-gray-900 mb-3">Awards</h2>
+            <div className="flex flex-wrap gap-3">
+              {awards.map(a => (
+                <div key={a.id} className="flex flex-col items-center gap-1 bg-gray-50 rounded-xl p-3 min-w-[80px]">
+                  <span className="text-2xl">{a.type === 'trophy' ? '🏆' : '🥇'}</span>
+                  <p className="text-xs font-medium text-gray-700 text-center leading-tight">{a.label || a.category}</p>
+                  <p className="text-xs text-gray-400">{a.month ? `${a.month}/${a.year}` : a.year}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* ── Apple Watch .fit upload ── */}
         <div className="card" id="fit-upload">
