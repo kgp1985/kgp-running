@@ -67,7 +67,7 @@ export default function LeaderboardWidget() {
 
         {/* Fastest Times */}
         <div>
-          <p className="text-xs font-bold tracking-widest uppercase text-zinc-500 mb-3">Course Records</p>
+          <p className="text-xs font-bold tracking-widest uppercase text-zinc-500 mb-3">Fastest Times</p>
           {loading ? (
             <p className="text-zinc-500 text-sm">Loading…</p>
           ) : (
@@ -83,7 +83,7 @@ export default function LeaderboardWidget() {
                         <span className="text-zinc-400 text-sm font-mono">{fmtTime(record.duration)}</span>
                       </>
                     ) : (
-                      <span className="text-zinc-600 text-sm">No record yet</span>
+                      <span className="text-zinc-600 text-sm">No time logged yet</span>
                     )}
                   </div>
                 )
