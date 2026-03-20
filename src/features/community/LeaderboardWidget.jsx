@@ -72,7 +72,7 @@ export default function LeaderboardWidget() {
             <p className="text-zinc-500 text-sm">Loading…</p>
           ) : (
             <div className="space-y-2">
-              {['5K', '10K', 'Half Marathon', 'Marathon'].map(event => {
+              {['1 Mile', '5K', '10K', 'Half Marathon', 'Marathon'].map(event => {
                 const record = fastest[event]
                 return (
                   <div key={event} className="flex items-center gap-3">

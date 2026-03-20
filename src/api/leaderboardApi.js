@@ -40,12 +40,14 @@ export async function getFastestEventTimes() {
 
   if (error) throw error
 
-  // Map distances to events (in miles)
+  // Hard minimums are the exact race distances in miles.
+  // Upper bounds allow ~0.15 mi GPS variance so watches that run slightly long still qualify.
   const EVENTS = {
-    '5K': { min: 3.0, max: 3.3 },
-    '10K': { min: 6.0, max: 6.4 },
-    'Half Marathon': { min: 12.9, max: 13.3 },
-    'Marathon': { min: 26.0, max: 26.5 },
+    '1 Mile':        { min: 1.0,   max: 1.15  },
+    '5K':            { min: 3.107, max: 3.26  },
+    '10K':           { min: 6.214, max: 6.37  },
+    'Half Marathon': { min: 13.109, max: 13.26 },
+    'Marathon':      { min: 26.219, max: 26.37 },
   }
 
   const fastest = {}
