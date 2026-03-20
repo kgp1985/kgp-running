@@ -278,12 +278,20 @@ function LandingPage({
   markDoneRun, setMarkDoneRun, showForm, setShowForm,
   // plan management
   view, setView, plans, plansLoading, selectedPlanId, onSelectPlan, onDeletePlan,
+  // delete all
+  onDeleteAll, deleteAllConfirm, setDeleteAllConfirm, deletingAll,
 }) {
   const planRef = useRef(null)
-  const today = new Date().toISOString().slice(0, 10)
-  const thisWeekEnd = new Date()
-  thisWeekEnd.setDate(thisWeekEnd.getDate() + 6)
-  const thisWeekEndStr = thisWeekEnd.toISOString().slice(0, 10)
+  const todayDate = new Date()
+  todayDate.setHours(0, 0, 0, 0)
+  const today = todayDate.toISOString().slice(0, 10)
+
+  // End of current calendar week = this Sunday (not a rolling 7-day window)
+  const thisWeekEndDate = new Date(todayDate)
+  const dow = todayDate.getDay() // 0=Sun, 1=Mon, …, 6=Sat
+  const daysToSunday = dow === 0 ? 0 : 7 - dow
+  thisWeekEndDate.setDate(todayDate.getDate() + daysToSunday)
+  const thisWeekEndStr = thisWeekEndDate.toISOString().slice(0, 10)
 
   // Apply plan filter when a plan is selected
   const displayedRuns = selectedPlanId
@@ -467,6 +475,38 @@ function LandingPage({
                 <div className="card">
                   <h2 className="text-base font-semibold text-gray-900 mb-4">Plan a Run</h2>
                   <PlannedRunForm onSubmit={onAddPlan} onCancel={() => setShowForm(false)} />
+                </div>
+              )}
+
+              {/* Delete All button */}
+              {!loading && plannedRuns.length > 0 && (
+                <div className="flex justify-end">
+                  {deleteAllConfirm ? (
+                    <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-2.5">
+                      <span className="text-sm text-red-700 font-medium">Delete all planned runs?</span>
+                      <button
+                        onClick={onDeleteAll}
+                        disabled={deletingAll}
+                        className="text-xs font-semibold text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 px-3 py-1.5 rounded-lg transition-colors"
+                      >
+                        {deletingAll ? 'Deleting…' : 'Yes, delete all'}
+                      </button>
+                      <button
+                        onClick={() => setDeleteAllConfirm(false)}
+                        disabled={deletingAll}
+                        className="text-xs font-semibold text-gray-500 hover:text-gray-800 px-2 py-1.5 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setDeleteAllConfirm(true)}
+                      className="text-xs font-semibold text-gray-400 hover:text-red-500 border border-gray-200 hover:border-red-200 px-3 py-1.5 rounded-lg transition-colors"
+                    >
+                      Delete all
+                    </button>
+                  )}
                 </div>
               )}
 
@@ -966,8 +1006,17 @@ function Step4FitnessAssessment({ data, setData, runs, prs }) {
             className="input"
             min={15}
             max={peakMileage}
-            value={data.startingMileage || Math.max(scoredMileage, Math.round(peakMileage * 0.55))}
-            onChange={(e) => setData({ ...data, startingMileage: parseInt(e.target.value) })}
+            value={data.startingMileage ?? ''}
+            placeholder={String(Math.max(scoredMileage, Math.round(peakMileage * 0.55)))}
+            onChange={(e) => {
+              const raw = e.target.value
+              if (raw === '') {
+                setData({ ...data, startingMileage: null })
+              } else {
+                const parsed = parseInt(raw)
+                if (!isNaN(parsed)) setData({ ...data, startingMileage: parsed })
+              }
+            }}
           />
         </div>
       )}
@@ -1133,7 +1182,7 @@ function Step5PreviewGenerate({ data, runs, prs }) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function TrainingPlan() {
-  const { plannedRuns, upcomingRuns, loading, addPlannedRun, removePlannedRun, removeRunsByPlanId, editPlannedRun, refetch } = usePlannedRunsDb()
+  const { plannedRuns, upcomingRuns, loading, addPlannedRun, removePlannedRun, removeRunsByPlanId, removeAllRuns, editPlannedRun, refetch } = usePlannedRunsDb()
   const { plans, loading: plansLoading, addPlan, removePlanWithRuns } = usePlansDb()
   const { runs } = useRunningLogDb()
   const { addRun } = useRunningLogDb()
@@ -1162,6 +1211,19 @@ export default function TrainingPlan() {
   // Plan management state
   const [view, setView] = useState('schedule')
   const [selectedPlanId, setSelectedPlanId] = useState(null)
+  const [deleteAllConfirm, setDeleteAllConfirm] = useState(false)
+  const [deletingAll, setDeletingAll] = useState(false)
+
+  const handleDeleteAll = async () => {
+    setDeletingAll(true)
+    try {
+      await removeAllRuns()
+      setSelectedPlanId(null)
+      setDeleteAllConfirm(false)
+    } finally {
+      setDeletingAll(false)
+    }
+  }
 
   const handleAddPlan = async (data) => {
     await addPlannedRun(data)
@@ -1404,6 +1466,10 @@ export default function TrainingPlan() {
         selectedPlanId={selectedPlanId}
         onSelectPlan={setSelectedPlanId}
         onDeletePlan={handleDeletePlan}
+        onDeleteAll={handleDeleteAll}
+        deleteAllConfirm={deleteAllConfirm}
+        setDeleteAllConfirm={setDeleteAllConfirm}
+        deletingAll={deletingAll}
       />
 
       {/* Edit Modal */}
