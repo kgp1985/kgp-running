@@ -1,9 +1,10 @@
 import { useState, useRef, useCallback } from 'react'
 import { useAuth } from '../../context/AuthContext'
-import { parseFitFile } from '../../utils/parseFit'
-import { parseTcxFile } from '../../utils/parseTcx'
+import { parseFitFileWithRecords } from '../../utils/parseFit'
+import { parseTcxFileWithTrackpoints } from '../../utils/parseTcx'
 import { parseGpxString } from '../../utils/parseGpx'
-import { bulkInsertRuns } from '../../api/bulkRunsApi'
+import { bulkInsertRuns, insertRunWithSplits } from '../../api/bulkRunsApi'
+import { extractMileSplitsFromRecords, extractMileSplitsFromTcx } from '../../utils/computeSplits'
 
 const WATCH_GUIDES = [
   {
@@ -169,39 +170,46 @@ export default function BulkImportModal({ onClose, onImported }) {
     setPhase('parsing')
     setProgress({ total: fileList.length, done: 0 })
 
-    const parsed = []
+    const gpxRuns = []
     const errors = []
     const byType = { fit: 0, gpx: 0, tcx: 0 }
 
     for (const file of fileList) {
       try {
         const ext = file.name.split('.').pop().toLowerCase()
-        let run
 
         if (ext === 'fit') {
-          run = await parseFitFile(await file.arrayBuffer())
+          // Parse FIT and extract splits
+          const { run, records, startTime } = await parseFitFileWithRecords(await file.arrayBuffer())
+          if (run && run.distance > 0) {
+            const splits = extractMileSplitsFromRecords(records, startTime)
+            await insertRunWithSplits(user.id, run, splits)
+          }
           byType.fit++
+        } else if (ext === 'tcx') {
+          // Parse TCX and extract splits
+          const { run, trackpoints } = await parseTcxFileWithTrackpoints(await file.text())
+          if (run && run.distance > 0) {
+            const splits = extractMileSplitsFromTcx(trackpoints)
+            await insertRunWithSplits(user.id, run, splits)
+          }
+          byType.tcx++
         } else if (ext === 'gpx') {
+          // Parse GPX (no splits extraction yet)
           const text = await file.text()
-          run = parseGpxString(text)
-          // parseGpxString returns distanceMiles, durationSeconds, elevationGainFeet, heartRate
-          // Normalize to our shape
-          run = {
-            date: run.date,
-            distance: run.distanceMiles,
-            duration: run.durationSeconds,
+          const gpxRun = parseGpxString(text)
+          const run = {
+            date: gpxRun.date,
+            distance: gpxRun.distanceMiles,
+            duration: gpxRun.durationSeconds,
             workoutType: 'easy',
             notes: '',
             source: 'gpx',
-            elevationGain: run.elevationGainFeet,
+            elevationGain: gpxRun.elevationGainFeet,
           }
+          if (run.distance > 0) gpxRuns.push(run)
           byType.gpx++
-        } else if (ext === 'tcx') {
-          run = parseTcxFile(await file.text())
-          byType.tcx++
         }
-
-        if (run && run.distance > 0) parsed.push(run)
       } catch (e) {
         errors.push(`${file.name}: ${e.message}`)
       }
@@ -209,8 +217,14 @@ export default function BulkImportModal({ onClose, onImported }) {
     }
 
     try {
-      if (parsed.length > 0) await bulkInsertRuns(user.id, parsed)
-      setResults({ imported: parsed.length, errors, byType })
+      // Bulk insert GPX runs (no splits)
+      let totalImported = byType.fit + byType.tcx
+      if (gpxRuns.length > 0) {
+        await bulkInsertRuns(user.id, gpxRuns)
+        totalImported += gpxRuns.length
+      }
+
+      setResults({ imported: totalImported, errors, byType })
       setPhase('done')
       if (onImported) onImported()
     } catch (e) {

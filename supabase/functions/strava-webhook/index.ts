@@ -138,6 +138,8 @@ serve(async (req) => {
       }
 
       // Insert into pending_runs (ignore duplicates)
+      // NOTE: activity.splits_standard is available for future per-mile extraction
+      // extractMileSplitsFromStrava(activity.splits_standard) returns DB-ready split objects
       await serviceClient.from('pending_runs').upsert({
         user_id:              conn.user_id,
         provider:             'strava',

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { Link } from 'react-router-dom'
 import PageWrapper from '../components/layout/PageWrapper.jsx'
 import RunPostCard from '../features/community/RunPostCard.jsx'
 import LeaderboardWidget from '../features/community/LeaderboardWidget.jsx'
@@ -9,7 +10,6 @@ import { usePersonalRecordsDb } from '../hooks/usePersonalRecordsDb.js'
 import { calculateCurrentVDOT } from '../utils/vdot.js'
 import { useRunningLogDb } from '../hooks/useRunningLogDb.js'
 import { useAuth } from '../context/AuthContext.jsx'
-import { setAllRunsPublic } from '../api/runsApi.js'
 import {
   sendFriendRequest,
   acceptFriendRequest,
@@ -38,130 +38,6 @@ const TYPE_CHIP_LABELS = {
   tuneup: 'Tune-up', keyrace: 'Race',
 }
 
-// ── Profile Settings Panel ────────────────────────────────────────────────────
-
-function ProfileSettingsPanel({ profile, loading, saveProfile, userId }) {
-  const [displayName, setDisplayName] = useState('')
-  const [saving, setSaving]           = useState(false)
-  const [saved, setSaved]             = useState(false)
-  const [error, setError]             = useState(null)
-
-  // Sync input whenever profile data arrives (fixes first-load blank state)
-  useEffect(() => {
-    if (profile?.displayName) setDisplayName(profile.displayName)
-  }, [profile?.displayName])
-
-  const handleNameChange = (val) => {
-    setDisplayName(val)
-    setSaved(false)
-    setError(null)
-  }
-
-  const handleTogglePublic = async () => {
-    const newIsPublic = !(profile?.isPublic ?? false)
-    setSaving(true)
-    setError(null)
-    try {
-      await saveProfile({ isPublic: newIsPublic })
-      // When going public, bulk-flip all existing runs to public too
-      if (newIsPublic && userId) {
-        await setAllRunsPublic(userId)
-      }
-    } catch (e) {
-      setError('Could not save. Check your connection and try again.')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const handleSaveName = async () => {
-    if (!displayName.trim()) return
-    setSaving(true)
-    setError(null)
-    try {
-      await saveProfile({ displayName: displayName.trim() })
-      setSaved(true)
-      setTimeout(() => setSaved(false), 2500)
-    } catch (e) {
-      setError('Could not save. Check your connection and try again.')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  if (loading) return null
-
-  return (
-    <div className="card mb-6">
-      <h2 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
-        <span className="w-5 h-5 rounded-full bg-black flex items-center justify-center">
-          <span className="text-[10px] font-bold text-red-400">
-            {(profile?.displayName || '?')[0].toUpperCase()}
-          </span>
-        </span>
-        Your Profile Settings
-      </h2>
-
-      <div className="space-y-4">
-        {/* Public toggle */}
-        <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
-          <div>
-            <p className="text-sm font-medium text-gray-800">Public Profile</p>
-            <p className="text-xs text-gray-400 mt-0.5">
-              {profile?.isPublic
-                ? 'Your public runs appear in the Community feed'
-                : 'Enable to share your runs with the community'}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={handleTogglePublic}
-            disabled={saving}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none disabled:opacity-50 ${
-              profile?.isPublic ? 'bg-red-500' : 'bg-gray-300'
-            }`}
-            aria-pressed={profile?.isPublic}
-          >
-            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
-              profile?.isPublic ? 'translate-x-6' : 'translate-x-1'
-            }`} />
-          </button>
-        </div>
-
-        {/* Display name */}
-        <div>
-          <label className="label">Display Name</label>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              className="input flex-1"
-              placeholder="Your name as shown on post cards"
-              maxLength={40}
-              value={displayName}
-              onChange={e => handleNameChange(e.target.value)}
-            />
-            <button
-              type="button"
-              onClick={handleSaveName}
-              disabled={saving || !displayName.trim()}
-              className={`px-4 py-2 rounded-xl text-sm font-semibold transition-colors disabled:opacity-40 ${
-                saved
-                  ? 'bg-green-500 text-white'
-                  : 'bg-gray-900 text-white hover:bg-gray-700'
-              }`}
-            >
-              {saved ? '✓ Saved' : saving ? '…' : 'Save'}
-            </button>
-          </div>
-        </div>
-
-        {error && (
-          <p className="text-xs text-red-500 mt-1">{error}</p>
-        )}
-      </div>
-    </div>
-  )
-}
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
@@ -379,14 +255,13 @@ export default function CommunityFeed() {
         </p>
       </div>
 
-      {/* ── Profile settings (signed-in users only) ── */}
-      {user && (
-        <ProfileSettingsPanel
-          profile={profile}
-          loading={profileLoading}
-          saveProfile={saveProfile}
-          userId={user.id}
-        />
+      {/* ── Settings nudge (if display name not set) ── */}
+      {user && !profile?.displayName && (
+        <div className="card mb-6 bg-gray-50 border border-gray-200 p-3">
+          <p className="text-sm text-gray-700">
+            👤 Add your display name on your <Link to="/profile" className="text-red-500 hover:text-red-700 font-semibold underline">Profile page</Link> to appear in the community.
+          </p>
+        </div>
       )}
 
       {/* ── Tab bar ── */}

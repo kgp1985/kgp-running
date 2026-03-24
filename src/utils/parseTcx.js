@@ -26,3 +26,29 @@ export function parseTcxFile(text) {
     elevationGain: elevGainM > 0 ? Math.round(elevGainM * 3.28084) : null,
   }
 }
+
+export function parseTcxFileWithTrackpoints(text) {
+  const parser = new DOMParser()
+  const xml = parser.parseFromString(text, 'text/xml')
+
+  // Get start time from first trackpoint
+  const firstTime = xml.querySelector('TrackPoint Time')?.textContent
+  const startMs = firstTime ? new Date(firstTime).getTime() : null
+
+  const trackpointEls = [...xml.querySelectorAll('Trackpoint')]
+  const trackpoints = trackpointEls
+    .map(tp => {
+      const timeStr = tp.querySelector('Time')?.textContent
+      const distStr = tp.querySelector('DistanceMeters')?.textContent
+      if (!timeStr || !distStr) return null
+      const distMeters = parseFloat(distStr)
+      const elapsedSeconds = startMs ? (new Date(timeStr).getTime() - startMs) / 1000 : null
+      if (isNaN(distMeters) || elapsedSeconds === null) return null
+      return { distanceMeters: distMeters, elapsedSeconds }
+    })
+    .filter(Boolean)
+
+  // Also compute the summary run object (reuse existing parseTcxFile logic)
+  const run = parseTcxFile(text)
+  return { run, trackpoints }
+}

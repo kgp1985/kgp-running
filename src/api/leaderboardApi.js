@@ -30,9 +30,37 @@ export async function getMileageLeaders(period = 'month') {
     .map(u => ({ ...u, miles: Math.round(u.miles * 10) / 10 }))
 }
 
-// Fastest event times — scans all runs within standard race distance ranges
+// Fastest event times — checks both pre-computed windows and standalone races
 export async function getFastestEventTimes() {
-  const { data, error } = await supabase
+  // Source 1: pre-computed windows from mile splits
+  const { data: windowData } = await supabase
+    .from('run_best_windows')
+    .select('event, fastest_seconds, user_id, profiles(display_name, is_public)')
+    .order('fastest_seconds', { ascending: true })
+
+  const fromWindows = {}
+  for (const w of windowData || []) {
+    if (!w.profiles?.is_public) continue
+    if (!fromWindows[w.event] || w.fastest_seconds < fromWindows[w.event].duration) {
+      fromWindows[w.event] = {
+        userId: w.user_id,
+        displayName: w.profiles.display_name,
+        duration: w.fastest_seconds,
+      }
+    }
+  }
+
+  // Map event DB keys to display keys
+  const EVENT_MAP = {
+    '1_mile': '1 Mile',
+    '5k': '5K',
+    '10k': '10K',
+    'half_marathon': 'Half Marathon',
+    'marathon': 'Marathon',
+  }
+
+  // Source 2: standalone races from runs table
+  const { data: runsData, error } = await supabase
     .from('runs')
     .select('id, user_id, date, distance, distance_unit, duration, profiles(display_name, is_public)')
     .not('duration', 'is', null)
@@ -50,16 +78,14 @@ export async function getFastestEventTimes() {
     'Marathon':      { min: 26.219, max: 26.37 },
   }
 
-  const fastest = {}
-  for (const event of Object.keys(EVENTS)) fastest[event] = null
-
-  for (const run of data || []) {
+  const fromStandalone = {}
+  for (const run of runsData || []) {
     if (!run.profiles?.is_public) continue
     const miles = run.distance_unit === 'km' ? run.distance * 0.621371 : run.distance
     for (const [event, { min, max }] of Object.entries(EVENTS)) {
       if (miles >= min && miles <= max) {
-        if (!fastest[event] || run.duration < fastest[event].duration) {
-          fastest[event] = {
+        if (!fromStandalone[event] || run.duration < fromStandalone[event].duration) {
+          fromStandalone[event] = {
             userId: run.user_id,
             displayName: run.profiles.display_name,
             duration: run.duration,
@@ -70,5 +96,19 @@ export async function getFastestEventTimes() {
       }
     }
   }
+
+  // Merge: prefer whichever is faster for each event
+  const fastest = {}
+  for (const [dbKey, displayKey] of Object.entries(EVENT_MAP)) {
+    const fromWindow = fromWindows[dbKey]
+    const fromRun = fromStandalone[displayKey]
+
+    if (fromWindow && fromRun) {
+      fastest[displayKey] = fromWindow.duration < fromRun.duration ? fromWindow : fromRun
+    } else {
+      fastest[displayKey] = fromWindow || fromRun || null
+    }
+  }
+
   return fastest
 }
