@@ -10,6 +10,7 @@ import { usePersonalRecordsDb } from '../hooks/usePersonalRecordsDb.js'
 import { calculateCurrentVDOT } from '../utils/vdot.js'
 import { useRunningLogDb } from '../hooks/useRunningLogDb.js'
 import { useAuth } from '../context/AuthContext.jsx'
+import { supabase } from '../lib/supabaseClient.js'
 import {
   sendFriendRequest,
   acceptFriendRequest,
@@ -38,6 +39,50 @@ const TYPE_CHIP_LABELS = {
   tuneup: 'Tune-up', keyrace: 'Race',
 }
 
+// ── Pending Requests Modal ──────────────────────────────────────────────────────
+
+function PendingRequestsModal({ requests, onAccept, onDecline, onClose }) {
+  if (!requests.length) return null
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl w-full max-w-sm p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-base font-bold text-gray-900">Friend Requests</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
+        </div>
+        <div className="space-y-3">
+          {requests.map(req => (
+            <div key={req.id} className="flex items-center justify-between gap-3 p-3 bg-gray-50 rounded-xl">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-8 h-8 rounded-full bg-black flex items-center justify-center shrink-0">
+                  <span className="text-xs font-bold text-red-400">
+                    {(req.display_name || '?')[0].toUpperCase()}
+                  </span>
+                </div>
+                <p className="text-sm font-medium text-gray-800 truncate">{req.display_name || 'Runner'}</p>
+              </div>
+              <div className="flex gap-2 shrink-0">
+                <button
+                  onClick={() => onAccept(req.id)}
+                  className="text-xs font-semibold text-white bg-black px-3 py-1.5 rounded-lg hover:bg-gray-800 transition-colors"
+                >
+                  Accept
+                </button>
+                <button
+                  onClick={() => onDecline(req.id)}
+                  className="text-xs font-semibold text-gray-500 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Decline
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
@@ -59,6 +104,9 @@ export default function CommunityFeed() {
   // Friends + Run Club state
   const [friends, setFriends] = useState([])
   const [pendingRequests, setPendingRequests] = useState([])
+  const [pendingRequestsEnriched, setPendingRequestsEnriched] = useState([])
+  const [showPendingModal, setShowPendingModal] = useState(false)
+  const [pendingModalDismissed, setPendingModalDismissed] = useState(false)
   const [clubRuns, setClubRuns] = useState([])
   const [loadingClub, setLoadingClub] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -92,6 +140,15 @@ export default function CommunityFeed() {
     }
   }, [communityTab, user?.id, friends.length])
 
+  // Auto-show pending modal when on club tab with pending requests
+  useEffect(() => {
+    if (communityTab === 'club' && pendingRequestsEnriched.length > 0 && !pendingModalDismissed) {
+      setShowPendingModal(true)
+    } else if (communityTab !== 'club' || pendingRequestsEnriched.length === 0) {
+      setShowPendingModal(false)
+    }
+  }, [communityTab, pendingRequestsEnriched.length, pendingModalDismissed])
+
   // Bulk load reactions for current feed
   useEffect(() => {
     const runIds = communityTab === 'world'
@@ -116,6 +173,29 @@ export default function CommunityFeed() {
       ])
       setFriends(friendsData)
       setPendingRequests(pendingData)
+
+      // Enrich pending requests with display names by fetching requester profiles
+      if (pendingData.length > 0) {
+        const requesterIds = pendingData.map(r => r.requester_id)
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, display_name')
+          .in('id', requesterIds)
+
+        const profileMap = new Map(profiles?.map(p => [p.id, p.display_name]) || [])
+        const enriched = pendingData.map(req => ({
+          ...req,
+          display_name: profileMap.get(req.requester_id) || 'Runner',
+        }))
+        setPendingRequestsEnriched(enriched)
+
+        // Auto-show modal if on club tab and modal not dismissed
+        if (communityTab === 'club' && !pendingModalDismissed) {
+          setShowPendingModal(true)
+        }
+      } else {
+        setPendingRequestsEnriched([])
+      }
     } catch (err) {
       console.error('Failed to load friends data:', err)
     }
@@ -429,33 +509,6 @@ export default function CommunityFeed() {
               )}
             </div>
 
-            {/* Pending requests */}
-            {pendingRequests.length > 0 && (
-              <div className="mb-4 pb-4 border-b border-gray-100">
-                <p className="text-xs font-semibold text-gray-700 mb-2">Pending Requests ({pendingRequests.length})</p>
-                <div className="space-y-2">
-                  {pendingRequests.map(req => (
-                    <div key={req.id} className="flex items-center justify-between p-2 rounded-lg bg-blue-50">
-                      <p className="text-sm text-gray-700">Friend request</p>
-                      <div className="flex gap-1">
-                        <button
-                          onClick={() => handleAcceptRequest(req.id)}
-                          className="text-xs font-medium text-white px-2.5 py-1 bg-green-500 hover:bg-green-600 rounded-lg transition-colors"
-                        >
-                          Accept
-                        </button>
-                        <button
-                          onClick={() => handleRemoveFriend(req.id)}
-                          className="text-xs font-medium text-gray-700 px-2.5 py-1 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
-                        >
-                          Decline
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
 
             {/* Friends list */}
             {friends.length > 0 && (
@@ -539,6 +592,19 @@ export default function CommunityFeed() {
           <a href="/login" className="text-red-500 hover:text-red-700 font-semibold underline">Sign in</a>
           {' '}to share your runs and appear in the community feed.
         </div>
+      )}
+
+      {/* ── Pending Requests Modal ── */}
+      {showPendingModal && (
+        <PendingRequestsModal
+          requests={pendingRequestsEnriched}
+          onAccept={handleAcceptRequest}
+          onDecline={handleRemoveFriend}
+          onClose={() => {
+            setShowPendingModal(false)
+            setPendingModalDismissed(true)
+          }}
+        />
       )}
     </PageWrapper>
   )
