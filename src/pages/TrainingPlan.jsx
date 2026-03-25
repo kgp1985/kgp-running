@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import PageWrapper from '../components/layout/PageWrapper.jsx'
 import PlannedRunForm from '../features/plan/PlannedRunForm.jsx'
 import RunForm from '../features/log/RunForm.jsx'
+import PlanBuilderModal from '../features/training/PlanBuilderModal.jsx'
+import ExcelImportModal from '../features/training/ExcelImportModal.jsx'
 import { usePlannedRunsDb } from '../hooks/usePlannedRunsDb.js'
 import { usePlansDb } from '../hooks/usePlansDb.js'
 import { useRunningLogDb } from '../hooks/useRunningLogDb.js'
@@ -12,6 +14,7 @@ import { useAuth } from '../context/AuthContext.jsx'
 import { calculateCurrentVDOT, calculateVDOT, getTrainingPaces } from '../utils/vdot.js'
 import { generatePlan } from '../utils/planGenerator.js'
 import { WORKOUT_TYPES, WORKOUT_TYPE_COLORS } from '../data/workoutTypes.js'
+import { downloadPlanTemplate } from '../utils/generatePlanTemplate.js'
 
 // ─ Scroll arrow component ─
 function ScrollArrow() {
@@ -353,6 +356,18 @@ function LandingPage({
                 className="bg-white text-black font-bold px-6 py-3 rounded-xl hover:bg-gray-100 transition-colors"
               >
                 Create a Plan
+              </button>
+              <button
+                onClick={() => setShowBuilder(true)}
+                className="bg-blue-500 text-white font-bold px-6 py-3 rounded-xl hover:bg-blue-600 transition-colors"
+              >
+                Build Plan
+              </button>
+              <button
+                onClick={() => setShowImport(true)}
+                className="bg-green-500 text-white font-bold px-6 py-3 rounded-xl hover:bg-green-600 transition-colors"
+              >
+                Import Excel
               </button>
               <button
                 onClick={() => setShowForm(!showForm)}
@@ -1212,6 +1227,11 @@ export default function TrainingPlan() {
   const [deleteAllConfirm, setDeleteAllConfirm] = useState(false)
   const [deletingAll, setDeletingAll] = useState(false)
 
+  // New plan builder and import state
+  const [showBuilder, setShowBuilder] = useState(false)
+  const [showImport, setShowImport] = useState(false)
+  const [builderInitialRows, setBuilderInitialRows] = useState([])
+
   const handleDeleteAll = async () => {
     setDeletingAll(true)
     try {
@@ -1442,6 +1462,23 @@ export default function TrainingPlan() {
     }
   }
 
+  // Plan builder handlers
+  const handleBuilderSave = async (rows) => {
+    setShowBuilder(false)
+    await refetch()
+  }
+
+  const handleExcelImport = (rows) => {
+    // Close import modal and open builder with pre-populated rows
+    setShowImport(false)
+    setBuilderInitialRows(rows)
+    setShowBuilder(true)
+  }
+
+  const handleDownloadTemplate = () => {
+    downloadPlanTemplate('plan_template.csv')
+  }
+
   return (
     <div className="bg-white">
       <LandingPage
@@ -1611,6 +1648,26 @@ export default function TrainingPlan() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Plan Builder Modal */}
+      {showBuilder && (
+        <PlanBuilderModal
+          onClose={() => {
+            setShowBuilder(false)
+            setBuilderInitialRows([])
+          }}
+          onSave={handleBuilderSave}
+          initialRows={builderInitialRows}
+        />
+      )}
+
+      {/* Excel Import Modal */}
+      {showImport && (
+        <ExcelImportModal
+          onClose={() => setShowImport(false)}
+          onImport={handleExcelImport}
+        />
       )}
     </div>
   )
