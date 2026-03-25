@@ -283,7 +283,10 @@ function LandingPage({
   view, setView, plans, plansLoading, selectedPlanId, onSelectPlan, onDeletePlan,
   // delete all
   onDeleteAll, deleteAllConfirm, setDeleteAllConfirm, deletingAll,
+  // new plan paths
+  onShowBuilder, onShowImport,
 }) {
+  const [showPicker, setShowPicker] = useState(false)
   const planRef = useRef(null)
   const todayDate = new Date()
   todayDate.setHours(0, 0, 0, 0)
@@ -330,10 +333,10 @@ function LandingPage({
             <h1 className="font-black text-5xl sm:text-7xl text-white mb-3 leading-tight">The Road Ahead</h1>
             <p className="text-base text-white/60 mb-8">Every great race starts with a plan.</p>
             <button
-              onClick={onCreatePlan}
+              onClick={() => setShowPicker(true)}
               className="inline-block bg-white text-black font-bold px-8 py-3 rounded-xl hover:bg-gray-100 transition-colors"
             >
-              Start by Creating Your Training Plan
+              Create a Plan
             </button>
           </div>
         </section>
@@ -352,28 +355,10 @@ function LandingPage({
             <p className="text-base text-white/60 mb-8">Every great race starts with a plan.</p>
             <div className="flex flex-wrap gap-4 justify-center">
               <button
-                onClick={onCreatePlan}
+                onClick={() => setShowPicker(true)}
                 className="bg-white text-black font-bold px-6 py-3 rounded-xl hover:bg-gray-100 transition-colors"
               >
-                Create a Plan
-              </button>
-              <button
-                onClick={() => setShowBuilder(true)}
-                className="bg-blue-500 text-white font-bold px-6 py-3 rounded-xl hover:bg-blue-600 transition-colors"
-              >
-                Build Plan
-              </button>
-              <button
-                onClick={() => setShowImport(true)}
-                className="bg-green-500 text-white font-bold px-6 py-3 rounded-xl hover:bg-green-600 transition-colors"
-              >
-                Import Excel
-              </button>
-              <button
-                onClick={() => setShowForm(!showForm)}
-                className="border-2 border-white text-white font-bold px-6 py-3 rounded-xl hover:bg-white/10 transition-colors"
-              >
-                Add a Workout
+                + Create a Plan
               </button>
               <button
                 onClick={handleScrollToView}
@@ -386,6 +371,52 @@ function LandingPage({
 
           <ScrollArrow />
         </section>
+      )}
+
+      {/* ─ Plan Picker Modal ─ */}
+      {showPicker && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-lg p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-bold text-gray-900">How do you want to build your plan?</h2>
+              <button onClick={() => setShowPicker(false)} className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <button
+                onClick={() => { setShowPicker(false); onCreatePlan(); }}
+                className="text-left p-4 rounded-xl border-2 border-gray-100 hover:border-black transition-colors group"
+              >
+                <div className="text-2xl mb-2">🤖</div>
+                <div className="font-semibold text-gray-900 text-sm group-hover:text-black">Auto-Generate</div>
+                <div className="text-xs text-gray-500 mt-1">Answer a few questions and we'll build a plan tailored to your goal race.</div>
+              </button>
+              <button
+                onClick={() => { setShowPicker(false); onShowBuilder(); }}
+                className="text-left p-4 rounded-xl border-2 border-gray-100 hover:border-black transition-colors group"
+              >
+                <div className="text-2xl mb-2">📋</div>
+                <div className="font-semibold text-gray-900 text-sm group-hover:text-black">Build Your Own</div>
+                <div className="text-xs text-gray-500 mt-1">Pick a date range and fill in your workouts day by day in a table.</div>
+              </button>
+              <button
+                onClick={() => { setShowPicker(false); onShowImport(); }}
+                className="text-left p-4 rounded-xl border-2 border-gray-100 hover:border-black transition-colors group"
+              >
+                <div className="text-2xl mb-2">📥</div>
+                <div className="font-semibold text-gray-900 text-sm group-hover:text-black">Import from Excel</div>
+                <div className="text-xs text-gray-500 mt-1">Upload a spreadsheet — great for coach plans or published programs.</div>
+              </button>
+              <button
+                onClick={() => { setShowPicker(false); setShowForm(true); }}
+                className="text-left p-4 rounded-xl border-2 border-gray-100 hover:border-black transition-colors group"
+              >
+                <div className="text-2xl mb-2">✏️</div>
+                <div className="font-semibold text-gray-900 text-sm group-hover:text-black">Add a Workout</div>
+                <div className="text-xs text-gray-500 mt-1">Add a single planned workout manually.</div>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ─ Mark Done Modal ─ */}
@@ -1505,6 +1536,8 @@ export default function TrainingPlan() {
         deleteAllConfirm={deleteAllConfirm}
         setDeleteAllConfirm={setDeleteAllConfirm}
         deletingAll={deletingAll}
+        onShowBuilder={() => setShowBuilder(true)}
+        onShowImport={() => setShowImport(true)}
       />
 
       {/* Edit Modal */}
