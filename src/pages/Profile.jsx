@@ -7,6 +7,11 @@ import { useProfile } from '../hooks/useProfile.js'
 import { supabase } from '../lib/supabaseClient.js'
 import { getUserAwards } from '../api/awardsApi.js'
 import {
+  getPendingRequests,
+  acceptFriendRequest,
+  removeFriendship,
+} from '../api/friendsApi.js'
+import {
   fetchWatchConnections,
   connectGarmin,
   completeGarminCallback,
@@ -154,6 +159,8 @@ export default function Profile() {
 
   const [awards, setAwards]                     = useState([])
 
+  const [pendingRequests, setPendingRequests]   = useState([])
+
   const [showImport, setShowImport]     = useState(false)
 
   // Sync display name when profile loads
@@ -178,6 +185,36 @@ export default function Profile() {
       .then(setAwards)
       .catch(console.error)
   }, [user])
+
+  // Load pending friend requests
+  useEffect(() => {
+    if (!user) return
+    loadPendingRequests()
+  }, [user])
+
+  const loadPendingRequests = async () => {
+    try {
+      const requests = await getPendingRequests(user.id)
+      if (requests.length > 0) {
+        // Enrich with display names
+        const requesterIds = requests.map(r => r.requester_id)
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, display_name')
+          .in('id', requesterIds)
+        const profileMap = new Map(profiles?.map(p => [p.id, p.display_name]) || [])
+        const enriched = requests.map(req => ({
+          ...req,
+          display_name: profileMap.get(req.requester_id) || req.requester_id,
+        }))
+        setPendingRequests(enriched)
+      } else {
+        setPendingRequests([])
+      }
+    } catch (err) {
+      console.error('Failed to load pending requests:', err)
+    }
+  }
 
   // Handle OAuth callbacks from Garmin / Coros redirects
   useEffect(() => {
@@ -279,6 +316,24 @@ export default function Profile() {
     navigate('/')
   }
 
+  const handleAcceptRequest = async (requestId) => {
+    try {
+      await acceptFriendRequest(requestId)
+      setPendingRequests(prev => prev.filter(r => r.id !== requestId))
+    } catch (err) {
+      console.error('Failed to accept request:', err)
+    }
+  }
+
+  const handleDeclineRequest = async (requestId) => {
+    try {
+      await removeFriendship(requestId)
+      setPendingRequests(prev => prev.filter(r => r.id !== requestId))
+    } catch (err) {
+      console.error('Failed to decline request:', err)
+    }
+  }
+
   if (loading) {
     return (
       <PageWrapper>
@@ -301,6 +356,34 @@ export default function Profile() {
             onAvatarSaved={handleAvatarSaved}
           />
         </div>
+
+        {/* ── Pending Friend Requests ── */}
+        {pendingRequests.length > 0 && (
+          <div className="card">
+            <h2 className="text-sm font-semibold text-gray-900 mb-3">Friend Requests ({pendingRequests.length})</h2>
+            <div className="space-y-2">
+              {pendingRequests.map(request => (
+                <div key={request.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <p className="text-sm font-medium text-gray-800">{request.display_name}</p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleAcceptRequest(request.id)}
+                      className="text-xs font-semibold text-white bg-black px-3 py-1.5 rounded-lg hover:bg-gray-800 transition-colors"
+                    >
+                      Accept
+                    </button>
+                    <button
+                      onClick={() => handleDeclineRequest(request.id)}
+                      className="text-xs font-semibold text-gray-500 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      Decline
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* ── Display Name ── */}
         <div className="card space-y-4">

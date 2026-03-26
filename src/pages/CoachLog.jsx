@@ -112,6 +112,8 @@ export default function CommunityFeed() {
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState([])
   const [loadingSearch, setLoadingSearch] = useState(false)
+  const [pendingIds, setPendingIds] = useState(new Set())
+  const [errorIds, setErrorIds] = useState(new Set())
 
   // Reactions state (bulk loaded)
   const [allReactions, setAllReactions] = useState([])
@@ -240,10 +242,12 @@ export default function CommunityFeed() {
   const handleSendFriendRequest = async (addresseeId) => {
     try {
       await sendFriendRequest(user.id, addresseeId)
+      setPendingIds(prev => new Set([...prev, addresseeId]))
       setSearchQuery('')
       setSearchResults([])
     } catch (err) {
       console.error('Failed to send friend request:', err)
+      setErrorIds(prev => new Set([...prev, addresseeId]))
     }
   }
 
@@ -497,12 +501,30 @@ export default function CommunityFeed() {
                         </div>
                         <p className="text-sm text-gray-700 truncate">{runner.display_name || 'Runner'}</p>
                       </div>
-                      <button
-                        onClick={() => handleSendFriendRequest(runner.id)}
-                        className="text-xs font-medium text-black px-2.5 py-1 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
-                      >
-                        Add
-                      </button>
+                      <div className="flex items-center gap-2">
+                        {pendingIds.has(runner.id) ? (
+                          <span className="text-xs font-medium text-gray-500 px-2.5 py-1 bg-gray-300 rounded-lg">
+                            Pending ✓
+                          </span>
+                        ) : errorIds.has(runner.id) ? (
+                          <>
+                            <span className="text-xs text-red-500 font-medium">Failed — try again</span>
+                            <button
+                              onClick={() => handleSendFriendRequest(runner.id)}
+                              className="text-xs font-medium text-black px-2.5 py-1 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
+                            >
+                              Add
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            onClick={() => handleSendFriendRequest(runner.id)}
+                            className="text-xs font-medium text-black px-2.5 py-1 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
+                          >
+                            Add
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
