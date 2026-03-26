@@ -539,13 +539,15 @@ const VISIBLE_ROWS = 7
 const CENTER_IDX = 3
 
 function getScaleForDistance(distance) {
-  const scales = [0.64, 0.76, 0.88, 1.0, 0.88, 0.76, 0.64]
-  return scales[distance] ?? 0.64
+  // distance 0 = center, 1 = adjacent, 2 = next, 3 = outermost
+  const scales = [1.0, 0.91, 0.82, 0.74]
+  return scales[distance] ?? 0.74
 }
 
 function getOpacityForDistance(distance) {
-  const opacities = [0.42, 0.60, 0.80, 1.0, 0.80, 0.60, 0.42]
-  return opacities[distance] ?? 0.42
+  // center fully opaque; outer rows still clearly legible
+  const opacities = [1.0, 0.82, 0.65, 0.50]
+  return opacities[distance] ?? 0.50
 }
 
 function HistorySpinner({ runs, onEdit, onDelete }) {
@@ -623,12 +625,12 @@ function HistorySpinner({ runs, onEdit, onDelete }) {
         {/* Top fade mask */}
         <div
           className="absolute inset-x-0 top-0 z-20 pointer-events-none"
-          style={{ height: ITEM_H * 3.2, background: 'linear-gradient(to bottom, #09090b 15%, transparent 100%)' }}
+          style={{ height: ITEM_H * 1.4, background: 'linear-gradient(to bottom, #09090b 20%, transparent 100%)' }}
         />
         {/* Bottom fade mask */}
         <div
           className="absolute inset-x-0 bottom-0 z-20 pointer-events-none"
-          style={{ height: ITEM_H * 3.2, background: 'linear-gradient(to top, #09090b 15%, transparent 100%)' }}
+          style={{ height: ITEM_H * 1.4, background: 'linear-gradient(to top, #09090b 20%, transparent 100%)' }}
         />
 
         {/* Items */}
