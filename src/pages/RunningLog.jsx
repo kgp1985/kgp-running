@@ -84,6 +84,37 @@ function ViewToggle({ view, onChange }) {
   )
 }
 
+// ── ChartToggle ────────────────────────────────────────────────────────────────
+
+function ChartToggle({ view, onChange }) {
+  return (
+    <div className="flex items-center bg-zinc-900 rounded-lg p-0.5 gap-0.5">
+      <button
+        onClick={() => onChange('weekly')}
+        title="Weekly view"
+        className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${
+          view === 'weekly'
+            ? 'bg-zinc-700 text-white'
+            : 'text-zinc-500 hover:text-zinc-300'
+        }`}
+      >
+        Week
+      </button>
+      <button
+        onClick={() => onChange('yearly')}
+        title="Yearly view"
+        className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${
+          view === 'yearly'
+            ? 'bg-zinc-700 text-white'
+            : 'text-zinc-500 hover:text-zinc-300'
+        }`}
+      >
+        Year
+      </button>
+    </div>
+  )
+}
+
 // ── ClassicList ────────────────────────────────────────────────────────────────
 
 function ClassicList({ runs, onEdit, onDelete }) {
@@ -138,11 +169,24 @@ function ClassicList({ runs, onEdit, onDelete }) {
 
 const MONTH_LABELS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 const GOAL_KEY = 'kgp_annual_mile_goal'
+const WEEKLY_GOAL_KEY = 'kgp_weekly_mile_goal'
+
+function getSunday(date) {
+  const d = new Date(date)
+  d.setDate(d.getDate() - d.getDay())
+  d.setHours(0, 0, 0, 0)
+  return d
+}
 
 function YearInMiles({ runs }) {
+  const [chartView, setChartView] = useState('weekly')
   const [goal, setGoal] = useState(() => {
     const saved = localStorage.getItem(GOAL_KEY)
     return saved ? parseInt(saved) : 1000
+  })
+  const [weeklyGoal, setWeeklyGoal] = useState(() => {
+    const saved = localStorage.getItem(WEEKLY_GOAL_KEY)
+    return saved ? parseInt(saved) : 30
   })
   const [editingGoal, setEditingGoal] = useState(false)
   const [goalInput, setGoalInput] = useState('')
@@ -153,9 +197,30 @@ function YearInMiles({ runs }) {
   const yearRuns = runs.filter(r => r.date.startsWith(String(year)))
   const totalMiles = yearRuns.reduce((s, r) =>
     s + (r.distanceUnit === 'km' ? r.distance / 1.60934 : r.distance), 0)
-  const progress = Math.min(1, totalMiles / goal)
-  const pct = Math.round(progress * 100)
 
+  // Weekly data
+  const today = new Date()
+  const currentSunday = getSunday(today)
+  const weeks = Array.from({ length: 12 }, (_, i) => {
+    const sunday = new Date(currentSunday)
+    sunday.setDate(sunday.getDate() - (11 - i) * 7)
+    const saturday = new Date(sunday)
+    saturday.setDate(saturday.getDate() + 6)
+    const isCurrent = i === 11
+    const sundayStr = sunday.toISOString().slice(0, 10)
+    const saturdayStr = saturday.toISOString().slice(0, 10)
+    const miles = runs
+      .filter(r => r.date >= sundayStr && r.date <= saturdayStr)
+      .reduce((s, r) => s + (r.distanceUnit === 'km' ? r.distance / 1.60934 : r.distance), 0)
+    const label = sunday.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    return { label, miles, isCurrent, isFuture: false }
+  })
+  const completedWeeks = weeks.slice(0, 11).filter(w => w.miles > 0)
+  const avgWeeklyMiles = completedWeeks.length > 0
+    ? completedWeeks.reduce((s, w) => s + w.miles, 0) / completedWeeks.length
+    : 0
+
+  // Monthly data (yearly view)
   const months = MONTH_LABELS.map((label, i) => {
     const monthStr = String(i + 1).padStart(2, '0')
     const miles = yearRuns
@@ -163,13 +228,25 @@ function YearInMiles({ runs }) {
       .reduce((s, r) => s + (r.distanceUnit === 'km' ? r.distance / 1.60934 : r.distance), 0)
     return { label, miles, isCurrent: i === currentMonth, isFuture: i > currentMonth }
   })
-  const maxMiles = Math.max(...months.map(m => m.miles), 1)
+
+  const isWeeklyView = chartView === 'weekly'
+  const barsToShow = isWeeklyView ? weeks : months
+  const maxMiles = Math.max(...barsToShow.map(b => b.miles), 1)
+  const displayMiles = isWeeklyView ? avgWeeklyMiles : totalMiles
+  const displayGoal = isWeeklyView ? weeklyGoal : goal
+  const progress = Math.min(1, displayMiles / displayGoal)
+  const pct = Math.round(progress * 100)
 
   const saveGoal = () => {
     const val = parseInt(goalInput)
     if (val > 0) {
-      setGoal(val)
-      localStorage.setItem(GOAL_KEY, String(val))
+      if (isWeeklyView) {
+        setWeeklyGoal(val)
+        localStorage.setItem(WEEKLY_GOAL_KEY, String(val))
+      } else {
+        setGoal(val)
+        localStorage.setItem(GOAL_KEY, String(val))
+      }
     }
     setEditingGoal(false)
   }
@@ -179,7 +256,7 @@ function YearInMiles({ runs }) {
   const cx = 100, cy = 92
   const arcLen = Math.PI * R // half circumference
   const dashOffset = arcLen * (1 - progress)
-  const milesLeft = Math.max(0, goal - totalMiles)
+  const milesLeft = Math.max(0, displayGoal - displayMiles)
 
   return (
     <div className="bg-zinc-950 rounded-2xl p-6 mb-8">
@@ -212,17 +289,17 @@ function YearInMiles({ runs }) {
             {/* Miles number */}
             <text x={cx} y={cy - 22} textAnchor="middle" fill="white"
               fontSize="30" fontWeight="900" fontFamily="system-ui, sans-serif" letterSpacing="-1">
-              {Math.round(totalMiles).toLocaleString()}
+              {Math.round(displayMiles).toLocaleString()}
             </text>
             <text x={cx} y={cy - 5} textAnchor="middle" fill="rgba(255,255,255,0.35)"
               fontSize="10" fontFamily="system-ui, sans-serif">
-              miles in {year}
+              {isWeeklyView ? 'avg / week' : `miles in ${year}`}
             </text>
             {/* End labels */}
             <text x={cx - R - 2} y={cy + 16} textAnchor="middle" fill="rgba(255,255,255,0.2)"
               fontSize="9" fontFamily="system-ui, sans-serif">0</text>
             <text x={cx + R + 2} y={cy + 16} textAnchor="middle" fill="rgba(255,255,255,0.2)"
-              fontSize="9" fontFamily="system-ui, sans-serif">{goal.toLocaleString()}</text>
+              fontSize="9" fontFamily="system-ui, sans-serif">{displayGoal.toLocaleString()}</text>
           </svg>
 
           {/* Progress pill + goal edit */}
@@ -249,32 +326,35 @@ function YearInMiles({ runs }) {
                   onChange={e => setGoalInput(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') saveGoal(); if (e.key === 'Escape') setEditingGoal(false) }}
                   className="w-24 bg-zinc-800 text-white text-xs text-center rounded-lg px-2 py-1.5 border border-zinc-600 focus:border-red-500 focus:outline-none"
-                  placeholder={String(goal)}
+                  placeholder={String(displayGoal)}
                 />
                 <button onClick={saveGoal} className="text-xs font-semibold text-red-400 hover:text-red-300 transition-colors">Set</button>
                 <button onClick={() => setEditingGoal(false)} className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors">✕</button>
               </div>
             ) : (
               <button
-                onClick={() => { setGoalInput(String(goal)); setEditingGoal(true) }}
+                onClick={() => { setGoalInput(String(displayGoal)); setEditingGoal(true) }}
                 className="text-[11px] text-zinc-700 hover:text-zinc-400 transition-colors flex items-center gap-1"
               >
                 <svg className="w-3 h-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8">
                   <path d="M11.5 2.5l2 2-8 8H3.5v-2l8-8z" />
                 </svg>
-                Goal: {goal.toLocaleString()} mi
+                {isWeeklyView ? 'Weekly Goal' : 'Goal'}: {displayGoal.toLocaleString()} mi
               </button>
             )}
           </div>
         </div>
 
-        {/* ── Monthly bars ── */}
+        {/* ── Bar chart (weekly or monthly) ── */}
         <div className="flex-1 w-full min-w-0">
-          <p className="text-[10px] font-black uppercase tracking-widest text-zinc-600 mb-4">
-            {year} · Month by Month
-          </p>
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-600">
+              {isWeeklyView ? '12 Weeks' : `${year} · Month by Month`}
+            </p>
+            <ChartToggle view={chartView} onChange={setChartView} />
+          </div>
           <div className="flex items-end gap-1" style={{ height: '88px' }}>
-            {months.map(({ label, miles, isCurrent, isFuture }) => {
+            {barsToShow.map(({ label, miles, isCurrent, isFuture }) => {
               const barH = isFuture ? 0 : (miles / maxMiles) * 72
               return (
                 <div key={label} className="flex-1 flex flex-col items-center gap-1">
@@ -296,7 +376,7 @@ function YearInMiles({ runs }) {
                       />
                     </div>
                   </div>
-                  {/* Month label */}
+                  {/* Label */}
                   <span className={`text-[9px] font-bold leading-none ${isCurrent ? 'text-red-400' : 'text-zinc-700'}`}>
                     {label}
                   </span>
@@ -305,34 +385,55 @@ function YearInMiles({ runs }) {
             })}
           </div>
 
-          {/* Pace stat footer */}
-          {yearRuns.length > 0 && (
+          {/* Stat footer — year or weekly */}
+          {(isWeeklyView ? completedWeeks.length > 0 : yearRuns.length > 0) && (
             <div className="flex gap-6 mt-4 pt-4 border-t border-zinc-900">
-              <div>
-                <p className="text-[9px] uppercase tracking-widest text-zinc-700 font-semibold">Runs</p>
-                <p className="text-sm font-black text-zinc-300">{yearRuns.length}</p>
-              </div>
-              <div>
-                <p className="text-[9px] uppercase tracking-widest text-zinc-700 font-semibold">Avg / Run</p>
-                <p className="text-sm font-black text-zinc-300">{(totalMiles / yearRuns.length).toFixed(1)} mi</p>
-              </div>
-              <div>
-                <p className="text-[9px] uppercase tracking-widest text-zinc-700 font-semibold">Pace to Goal</p>
-                <p className="text-sm font-black text-zinc-300">
-                  {(() => {
-                    const daysLeft = Math.max(1, Math.ceil((new Date(`${year}-12-31`) - new Date()) / 86400000))
-                    const weeksLeft = daysLeft / 7
-                    const milesPerWeek = milesLeft / weeksLeft
-                    return milesLeft > 0 ? `${milesPerWeek.toFixed(1)} mi/wk` : '—'
-                  })()}
-                </p>
-              </div>
-              <div>
-                <p className="text-[9px] uppercase tracking-widest text-zinc-700 font-semibold">Best Month</p>
-                <p className="text-sm font-black text-zinc-300">
-                  {months.reduce((best, m) => m.miles > best.miles ? m : best, months[0]).label}
-                </p>
-              </div>
+              {isWeeklyView ? (
+                <>
+                  <div>
+                    <p className="text-[9px] uppercase tracking-widest text-zinc-700 font-semibold">Weeks Logged</p>
+                    <p className="text-sm font-black text-zinc-300">{completedWeeks.length}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] uppercase tracking-widest text-zinc-700 font-semibold">Current Week</p>
+                    <p className="text-sm font-black text-zinc-300">{weeks[11].miles.toFixed(1)} mi</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] uppercase tracking-widest text-zinc-700 font-semibold">Best Week</p>
+                    <p className="text-sm font-black text-zinc-300">
+                      {Math.max(...weeks.map(w => w.miles)).toFixed(1)} mi
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <p className="text-[9px] uppercase tracking-widest text-zinc-700 font-semibold">Runs</p>
+                    <p className="text-sm font-black text-zinc-300">{yearRuns.length}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] uppercase tracking-widest text-zinc-700 font-semibold">Avg / Run</p>
+                    <p className="text-sm font-black text-zinc-300">{(totalMiles / yearRuns.length).toFixed(1)} mi</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] uppercase tracking-widest text-zinc-700 font-semibold">Pace to Goal</p>
+                    <p className="text-sm font-black text-zinc-300">
+                      {(() => {
+                        const daysLeft = Math.max(1, Math.ceil((new Date(`${year}-12-31`) - new Date()) / 86400000))
+                        const weeksLeft = daysLeft / 7
+                        const milesPerWeek = milesLeft / weeksLeft
+                        return milesLeft > 0 ? `${milesPerWeek.toFixed(1)} mi/wk` : '—'
+                      })()}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] uppercase tracking-widest text-zinc-700 font-semibold">Best Month</p>
+                    <p className="text-sm font-black text-zinc-300">
+                      {months.reduce((best, m) => m.miles > best.miles ? m : best, months[0]).label}
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>
@@ -434,6 +535,18 @@ function Stat({ label, value }) {
 // Drum-barrel "word spinner" style navigation for older runs.
 
 const ITEM_H = 68 // px per row in the drum
+const VISIBLE_ROWS = 7
+const CENTER_IDX = 3
+
+function getScaleForDistance(distance) {
+  const scales = [0.64, 0.76, 0.88, 1.0, 0.88, 0.76, 0.64]
+  return scales[distance] ?? 0.64
+}
+
+function getOpacityForDistance(distance) {
+  const opacities = [0.42, 0.60, 0.80, 1.0, 0.80, 0.60, 0.42]
+  return opacities[distance] ?? 0.42
+}
 
 function HistorySpinner({ runs, onEdit, onDelete }) {
   const [activeIdx, setActiveIdx] = useState(0)
@@ -472,6 +585,8 @@ function HistorySpinner({ runs, onEdit, onDelete }) {
   const DOT_MAX = 8
   const showDots = runs.length <= DOT_MAX
 
+  const containerHeight = ITEM_H * VISIBLE_ROWS
+
   return (
     <div className="bg-zinc-950 rounded-2xl overflow-hidden select-none">
 
@@ -487,7 +602,7 @@ function HistorySpinner({ runs, onEdit, onDelete }) {
       <div
         ref={containerRef}
         className="relative cursor-grab active:cursor-grabbing"
-        style={{ height: ITEM_H * 5, perspective: '700px' }}
+        style={{ height: containerHeight, perspective: '700px' }}
         onPointerDown={handlePointerDown}
         onPointerUp={handlePointerUp}
         onPointerLeave={() => setDragStartY(null)}
@@ -508,25 +623,26 @@ function HistorySpinner({ runs, onEdit, onDelete }) {
         {/* Top fade mask */}
         <div
           className="absolute inset-x-0 top-0 z-20 pointer-events-none"
-          style={{ height: ITEM_H * 2.2, background: 'linear-gradient(to bottom, #09090b 15%, transparent 100%)' }}
+          style={{ height: ITEM_H * 3.2, background: 'linear-gradient(to bottom, #09090b 15%, transparent 100%)' }}
         />
         {/* Bottom fade mask */}
         <div
           className="absolute inset-x-0 bottom-0 z-20 pointer-events-none"
-          style={{ height: ITEM_H * 2.2, background: 'linear-gradient(to top, #09090b 15%, transparent 100%)' }}
+          style={{ height: ITEM_H * 3.2, background: 'linear-gradient(to top, #09090b 15%, transparent 100%)' }}
         />
 
         {/* Items */}
         {runs.map((run, i) => {
           const offset = i - safeIdx
-          if (Math.abs(offset) > 4) return null
+          if (Math.abs(offset) > (VISIBLE_ROWS - 1) / 2) return null
 
           const { style, label } = getTypeStyle(run.workoutType)
           const isActive = offset === 0
+          const distance = Math.abs(offset)
+          const scale = getScaleForDistance(distance)
+          const opacity = getOpacityForDistance(distance)
           const rotX = offset * -16
           const translateY = offset * ITEM_H
-          const opacity = Math.max(0, 1 - Math.abs(offset) * 0.42)
-          const scale = 1 - Math.abs(offset) * 0.055
           const pace = fmtPace(run.distance, run.duration, run.distanceUnit)
 
           return (
@@ -538,14 +654,20 @@ function HistorySpinner({ runs, onEdit, onDelete }) {
                 left: 0,
                 right: 0,
                 height: ITEM_H,
-                transform: `translateY(calc(-50% + ${translateY}px)) rotateX(${rotX}deg) scale(${scale})`,
+                transform: `translateY(calc(-50% + ${translateY}px)) rotateX(${rotX}deg)`,
                 opacity,
                 transformOrigin: 'center center',
                 transition: dragStartY !== null ? 'none' : 'all 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
                 zIndex: isActive ? 5 : 1,
               }}
             >
-              <div className="flex items-center gap-3 px-5 h-full">
+              <div
+                className="flex items-center gap-3 px-5 h-full"
+                style={{
+                  transform: `scale(${scale})`,
+                  transformOrigin: 'center',
+                }}
+              >
 
                 {/* Color dot */}
                 <div className={`w-2 h-2 rounded-full flex-shrink-0 ${style.dot}`} style={{ opacity: isActive ? 1 : 0.5 }} />
@@ -707,20 +829,15 @@ export default function RunningLog() {
 
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-black text-gray-900">
-              {profile?.displayName
-                ? `${profile.displayName.trim().split(' ')[0]}'s Log`
-                : 'My Log'}
-            </h1>
-            <p className="text-sm text-gray-400 mt-0.5">
-              {runs.length} run{runs.length !== 1 ? 's' : ''} · {totalMiles.toFixed(1)} mi shown
-            </p>
-          </div>
-          {olderRuns.length > 0 && (
-            <ViewToggle view={viewMode} onChange={setViewMode} />
-          )}
+        <div>
+          <h1 className="text-3xl font-black text-gray-900">
+            {profile?.displayName
+              ? `${profile.displayName.trim().split(' ')[0]}'s Log`
+              : 'My Log'}
+          </h1>
+          <p className="text-sm text-gray-400 mt-0.5">
+            {runs.length} run{runs.length !== 1 ? 's' : ''} · {totalMiles.toFixed(1)} mi shown
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -758,8 +875,15 @@ export default function RunningLog() {
 
       {/* Filters */}
       {runs.length > 0 && (
-        <div className="bg-gray-50 rounded-2xl px-4 py-3 mb-6">
-          <LogFilters filters={filters} onChange={setFilters} />
+        <div className="bg-gray-50 rounded-2xl px-4 py-3 mb-6 flex items-center justify-between">
+          <div className="flex-1">
+            <LogFilters filters={filters} onChange={setFilters} />
+          </div>
+          {olderRuns.length > 0 && (
+            <div className="flex-shrink-0 ml-4">
+              <ViewToggle view={viewMode} onChange={setViewMode} />
+            </div>
+          )}
         </div>
       )}
 
