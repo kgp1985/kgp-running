@@ -52,16 +52,16 @@ export async function getPendingRequests(userId) {
   return data || []
 }
 
-// Search users by display name (for adding friends)
-export async function searchUsers(query) {
+// Search users by display name or username (for adding friends)
+export async function searchUsers(query, currentUserId) {
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, display_name, avatar_url')
-    .ilike('display_name', `%${query}%`)
-    .eq('is_public', true)
+    .select('id, display_name, username, avatar_url')
+    .or(`display_name.ilike.%${query}%,username.ilike.%${query}%`)
+    .neq('id', currentUserId)
     .limit(10)
   if (error) throw error
-  return data || []
+  return data ?? []
 }
 
 // Get friend's public runs (for Run Club feed)

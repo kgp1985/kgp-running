@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import PageWrapper from '../components/layout/PageWrapper.jsx'
 import RunPostCard from '../features/community/RunPostCard.jsx'
 import LeaderboardWidget from '../features/community/LeaderboardWidget.jsx'
@@ -12,7 +12,6 @@ import { useRunningLogDb } from '../hooks/useRunningLogDb.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 import {
-  sendFriendRequest,
   acceptFriendRequest,
   removeFriendship,
   getFriends,
@@ -87,6 +86,7 @@ function PendingRequestsModal({ requests, onAccept, onDecline, onClose }) {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function CommunityFeed() {
+  const navigate = useNavigate()
   const { user } = useAuth()
   const { runs: communityRuns, prsMap, shoesMap, loading, loadingMore, hasMore, loadMore, refresh } = useCommunityFeed()
   const { profile, loading: profileLoading, saveProfile } = useProfile()
@@ -112,8 +112,6 @@ export default function CommunityFeed() {
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState([])
   const [loadingSearch, setLoadingSearch] = useState(false)
-  const [pendingIds, setPendingIds] = useState(new Set())
-  const [errorIds, setErrorIds] = useState(new Set())
 
   // Reactions state (bulk loaded)
   const [allReactions, setAllReactions] = useState([])
@@ -225,11 +223,11 @@ export default function CommunityFeed() {
       return
     }
     setLoadingSearch(true)
-    searchUsers(searchQuery)
+    searchUsers(searchQuery, user?.id)
       .then(results => {
-        // Filter out self and existing friends
+        // Filter out existing friends
         const friendIds = new Set(friends.map(f => f.friendId))
-        setSearchResults(results.filter(r => r.id !== user?.id && !friendIds.has(r.id)))
+        setSearchResults(results.filter(r => !friendIds.has(r.id)))
       })
       .catch(err => {
         console.error('Search failed:', err)
@@ -237,19 +235,6 @@ export default function CommunityFeed() {
       })
       .finally(() => setLoadingSearch(false))
   }, [searchQuery, user?.id, friends])
-
-  // Send friend request
-  const handleSendFriendRequest = async (addresseeId) => {
-    try {
-      await sendFriendRequest(user.id, addresseeId)
-      setPendingIds(prev => new Set([...prev, addresseeId]))
-      setSearchQuery('')
-      setSearchResults([])
-    } catch (err) {
-      console.error('Failed to send friend request:', err)
-      setErrorIds(prev => new Set([...prev, addresseeId]))
-    }
-  }
 
   // Accept friend request
   const handleAcceptRequest = async (requestId) => {
@@ -261,7 +246,7 @@ export default function CommunityFeed() {
     }
   }
 
-  // Remove friendship
+  // Remove friendship (used by pending requests modal)
   const handleRemoveFriend = async (friendshipId) => {
     try {
       await removeFriendship(friendshipId)
@@ -483,7 +468,7 @@ export default function CommunityFeed() {
             <div className="mb-4">
               <input
                 type="text"
-                placeholder="Find runners by name…"
+                placeholder="Find runners by name or handle…"
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 className="input w-full"
@@ -499,32 +484,19 @@ export default function CommunityFeed() {
                             {(runner.display_name || 'A')[0].toUpperCase()}
                           </span>
                         </div>
-                        <p className="text-sm text-gray-700 truncate">{runner.display_name || 'Runner'}</p>
+                        <div className="min-w-0">
+                          <p className="text-sm text-gray-700 truncate">{runner.display_name || 'Runner'}</p>
+                          {runner.username && (
+                            <p className="text-xs text-gray-500">@{runner.username}</p>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        {pendingIds.has(runner.id) ? (
-                          <span className="text-xs font-medium text-gray-500 px-2.5 py-1 bg-gray-300 rounded-lg">
-                            Pending ✓
-                          </span>
-                        ) : errorIds.has(runner.id) ? (
-                          <>
-                            <span className="text-xs text-red-500 font-medium">Failed — try again</span>
-                            <button
-                              onClick={() => handleSendFriendRequest(runner.id)}
-                              className="text-xs font-medium text-black px-2.5 py-1 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
-                            >
-                              Add
-                            </button>
-                          </>
-                        ) : (
-                          <button
-                            onClick={() => handleSendFriendRequest(runner.id)}
-                            className="text-xs font-medium text-black px-2.5 py-1 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
-                          >
-                            Add
-                          </button>
-                        )}
-                      </div>
+                      <button
+                        onClick={() => navigate(`/profile/${runner.username || runner.id}`)}
+                        className="text-xs font-medium text-white px-3 py-1.5 bg-black hover:bg-gray-800 rounded-lg transition-colors shrink-0"
+                      >
+                        View Profile
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -532,27 +504,7 @@ export default function CommunityFeed() {
             </div>
 
 
-            {/* Friends list */}
-            {friends.length > 0 && (
-              <div>
-                <p className="text-xs font-semibold text-gray-700 mb-2">Friends ({friends.length})</p>
-                <div className="flex flex-wrap gap-2">
-                  {friends.map(f => (
-                    <div key={f.friendshipId} className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-gray-100">
-                      <span className="text-xs text-gray-700">{f.friendId.slice(0, 8)}…</span>
-                      <button
-                        onClick={() => handleRemoveFriend(f.friendshipId)}
-                        className="text-xs text-gray-400 hover:text-red-500 ml-1"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {friends.length === 0 && pendingRequests.length === 0 && searchResults.length === 0 && (
+            {friends.length === 0 && searchResults.length === 0 && (
               <p className="text-xs text-gray-400">Find runners to follow and see their runs here.</p>
             )}
           </div>
