@@ -10,7 +10,12 @@ import {
   getPendingRequests,
   acceptFriendRequest,
   removeFriendship,
+  getFriends,
 } from '../api/friendsApi.js'
+import {
+  checkUsernameAvailable,
+  fetchProfileById,
+} from '../api/profilesApi.js'
 import {
   fetchWatchConnections,
   connectGarmin,
@@ -21,6 +26,18 @@ import {
   completeStravaCallback,
   disconnectWatch,
 } from '../api/watchApi.js'
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+const AVAILABLE_WIDGETS = [
+  { key: 'recent_runs',    label: 'Recent Runs',       desc: 'Your last few runs' },
+  { key: 'mileage_chart',  label: 'Mileage Chart',     desc: 'Weekly mileage over time' },
+  { key: 'fastest_times',  label: 'Fastest Times',     desc: 'Your PRs by distance' },
+  { key: 'shoe_rack',      label: 'Shoe Rack',         desc: 'Your active shoes' },
+  { key: 'upcoming_races', label: 'Upcoming Races',    desc: 'Races on your calendar' },
+  { key: 'awards',         label: 'Awards',            desc: 'Medals and trophies earned' },
+  { key: 'challenges',     label: 'Challenges',        desc: 'Active challenges' },
+]
 
 // ── Avatar Upload ─────────────────────────────────────────────────────────────
 
@@ -148,9 +165,17 @@ export default function Profile() {
   const [searchParams, setSearchParams] = useSearchParams()
 
   const [displayName, setDisplayName]   = useState('')
+  const [username, setUsername]         = useState('')
+  const [usernameStatus, setUsernameStatus] = useState(null) // 'checking' | 'available' | 'taken' | 'error'
+  const [bio, setBio]                   = useState('')
+  const [profileWidgets, setProfileWidgets] = useState(['recent_runs','mileage_chart','fastest_times'])
   const [nameSaving, setNameSaving]     = useState(false)
   const [nameSaved, setNameSaved]       = useState(false)
   const [profileError, setProfileError] = useState(null)
+
+  const [friends, setFriends]           = useState([])
+  const [friendProfiles, setFriendProfiles] = useState({})
+  const [friendsLoading, setFriendsLoading] = useState(true)
 
   const [watchConnections, setWatchConnections] = useState([])
   const [watchLoading, setWatchLoading]         = useState(true)
@@ -163,10 +188,13 @@ export default function Profile() {
 
   const [showImport, setShowImport]     = useState(false)
 
-  // Sync display name when profile loads
+  // Sync profile data when profile loads
   useEffect(() => {
     if (profile?.displayName) setDisplayName(profile.displayName)
-  }, [profile?.displayName])
+    if (profile?.username) setUsername(profile.username)
+    if (profile?.bio) setBio(profile.bio)
+    if (profile?.profileWidgets) setProfileWidgets(profile.profileWidgets)
+  }, [profile?.displayName, profile?.username, profile?.bio, profile?.profileWidgets])
 
   // Load watch connections
   useEffect(() => {
@@ -184,6 +212,33 @@ export default function Profile() {
     getUserAwards(user.id)
       .then(setAwards)
       .catch(console.error)
+  }, [user])
+
+  // Load friends
+  useEffect(() => {
+    if (!user) return
+    setFriendsLoading(true)
+    getFriends(user.id)
+      .then(async (friendsList) => {
+        setFriends(friendsList)
+        // Load friend profiles in parallel
+        const profilesMap = {}
+        if (friendsList.length > 0) {
+          for (const friend of friendsList) {
+            try {
+              const profile = await fetchProfileById(friend.friendId)
+              if (profile) {
+                profilesMap[friend.friendId] = profile
+              }
+            } catch (err) {
+              console.error('Failed to load friend profile:', err)
+            }
+          }
+        }
+        setFriendProfiles(profilesMap)
+      })
+      .catch(console.error)
+      .finally(() => setFriendsLoading(false))
   }, [user])
 
   // Load pending friend requests
@@ -261,18 +316,59 @@ export default function Profile() {
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  const handleUsernameBlur = async (value) => {
+    if (!value.trim() || value === profile?.username) {
+      setUsernameStatus(null)
+      return
+    }
+    // Validate format
+    if (!/^[a-z0-9_]{3,20}$/.test(value.trim())) {
+      setUsernameStatus('error')
+      return
+    }
+    setUsernameStatus('checking')
+    try {
+      const available = await checkUsernameAvailable(value.trim())
+      setUsernameStatus(available ? 'available' : 'taken')
+    } catch (err) {
+      console.error('Username check error:', err)
+      setUsernameStatus('error')
+    }
+  }
+
   const handleSaveName = async () => {
     if (!displayName.trim()) return
     setNameSaving(true)
     setProfileError(null)
     try {
-      await saveProfile({ displayName: displayName.trim() })
+      const updates = { displayName: displayName.trim() }
+      if (username.trim() && username !== profile?.username) {
+        updates.username = username.trim()
+      }
+      if (bio !== profile?.bio) {
+        updates.bio = bio
+      }
+      await saveProfile(updates)
       setNameSaved(true)
+      setUsernameStatus(null)
       setTimeout(() => setNameSaved(false), 2500)
     } catch {
       setProfileError('Could not save. Try again.')
     } finally {
       setNameSaving(false)
+    }
+  }
+
+  const handleToggleWidget = async (widgetKey) => {
+    const newWidgets = profileWidgets.includes(widgetKey)
+      ? profileWidgets.filter(w => w !== widgetKey)
+      : [...profileWidgets, widgetKey]
+    setProfileWidgets(newWidgets)
+    try {
+      await saveProfile({ profileWidgets: newWidgets })
+    } catch (err) {
+      console.error('Failed to update widgets:', err)
+      setProfileError('Could not save widget preference.')
     }
   }
 
@@ -385,9 +481,36 @@ export default function Profile() {
           </div>
         )}
 
-        {/* ── Display Name ── */}
+        {/* ── Community Settings ── */}
         <div className="card space-y-4">
-          <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">Profile Info</h2>
+          <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">Community Settings</h2>
+
+          {/* Username */}
+          <div>
+            <label className="label">Your Handle <span className="text-xs text-gray-400">@username — used to find and tag you</span></label>
+            <input
+              type="text"
+              className="input"
+              placeholder="username_like_this"
+              maxLength={20}
+              pattern="[a-z0-9_]*"
+              value={username}
+              onChange={e => { setUsername(e.target.value.toLowerCase()); setNameSaved(false) }}
+              onBlur={e => handleUsernameBlur(e.target.value)}
+            />
+            {username && username !== profile?.username && (
+              <div className="mt-1">
+                {usernameStatus === 'checking' && <p className="text-xs text-gray-500">Checking…</p>}
+                {usernameStatus === 'available' && <p className="text-xs text-green-600">✓ Available</p>}
+                {usernameStatus === 'taken' && <p className="text-xs text-red-500">✗ Taken</p>}
+                {usernameStatus === 'error' && /^[a-z0-9_]{3,20}$/.test(username) === false && (
+                  <p className="text-xs text-red-500">Only lowercase letters, numbers, and underscores (3-20 chars)</p>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Display Name */}
           <div>
             <label className="label">Display Name</label>
             <div className="flex gap-2">
@@ -409,6 +532,20 @@ export default function Profile() {
                 {nameSaved ? '✓ Saved' : nameSaving ? '…' : 'Save'}
               </button>
             </div>
+          </div>
+
+          {/* Bio */}
+          <div>
+            <label className="label">Bio</label>
+            <textarea
+              className="input"
+              placeholder="A short intro for your profile…"
+              maxLength={160}
+              rows={2}
+              value={bio}
+              onChange={e => { setBio(e.target.value); setNameSaved(false) }}
+            />
+            <p className="text-xs text-gray-400 mt-1">{bio.length}/160</p>
           </div>
 
           {/* Public toggle */}
@@ -436,6 +573,73 @@ export default function Profile() {
           </div>
 
           {profileError && <p className="text-xs text-red-500">{profileError}</p>}
+        </div>
+
+        {/* ── Your Public Profile ── */}
+        <div className="card">
+          <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">Your Public Profile</h2>
+          <p className="text-xs text-gray-400 mb-4">Choose which stats appear when others view your profile.</p>
+          <div className="space-y-2">
+            {AVAILABLE_WIDGETS.map(widget => (
+              <div key={widget.key} className="flex items-start gap-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
+                <input
+                  type="checkbox"
+                  id={`widget-${widget.key}`}
+                  checked={profileWidgets.includes(widget.key)}
+                  onChange={() => handleToggleWidget(widget.key)}
+                  className="mt-0.5 cursor-pointer accent-red-500"
+                />
+                <label htmlFor={`widget-${widget.key}`} className="flex-1 cursor-pointer">
+                  <p className="text-sm font-medium text-gray-800">{widget.label}</p>
+                  <p className="text-xs text-gray-500">{widget.desc}</p>
+                </label>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ── Friends ── */}
+        <div className="card">
+          <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-3">Friends</h2>
+          {friendsLoading ? (
+            <p className="text-sm text-gray-400">Loading…</p>
+          ) : friends.length === 0 ? (
+            <p className="text-sm text-gray-500">No friends yet — search for runners on the Community page</p>
+          ) : (
+            <div className="grid grid-cols-6 gap-4">
+              {friends.slice(0, 12).map(friend => {
+                const friendProfile = friendProfiles[friend.friendId]
+                return (
+                  <div
+                    key={friend.friendId}
+                    className="flex flex-col items-center gap-2 p-2 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+                  >
+                    {friendProfile?.avatarUrl ? (
+                      <img
+                        src={friendProfile.avatarUrl}
+                        alt={friendProfile.displayName}
+                        className="w-12 h-12 rounded-full object-cover border border-gray-200"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center border border-gray-200">
+                        <span className="text-xs font-semibold text-gray-500">
+                          {(friendProfile?.displayName || 'F')[0].toUpperCase()}
+                        </span>
+                      </div>
+                    )}
+                    <p className="text-xs font-medium text-gray-800 text-center line-clamp-2">
+                      {friendProfile?.displayName || 'Friend'}
+                    </p>
+                  </div>
+                )
+              })}
+              {friends.length > 12 && (
+                <div className="flex items-center justify-center w-12 h-12 rounded-full bg-gray-100 border border-gray-200">
+                  <p className="text-xs font-semibold text-gray-600">+{friends.length - 12}</p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* ── Watch Connections ── */}

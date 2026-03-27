@@ -4,12 +4,12 @@ import { fetchMyProfile, updateMyProfile } from '../api/profilesApi.js'
 
 /**
  * Hook to read and update the signed-in user's profile settings
- * (display_name, is_public).
+ * (display_name, username, bio, is_public, profile_widgets).
  *
  * Returns:
- *   profile  — { id, displayName, isPublic } or null while loading
+ *   profile  — { id, displayName, username, bio, isPublic, avatarUrl, profileWidgets } or null while loading
  *   loading  — boolean
- *   saveProfile(updates) — async fn; updates = { displayName?, isPublic? }
+ *   saveProfile(updates) — async fn; updates = { displayName?, username?, bio?, isPublic?, avatarUrl?, profileWidgets? }
  */
 export function useProfile() {
   const { user } = useAuth()
