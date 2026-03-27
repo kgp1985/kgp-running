@@ -148,3 +148,16 @@ export async function updateRun(runId, updates) {
   if (error) throw error
   return dbRunToRun(data)
 }
+
+// Fetch recent public runs for a user (for public profile display)
+export async function fetchPublicRunsForProfile(userId, limit = 5) {
+  const { data, error } = await supabase
+    .from('runs')
+    .select('id, date, distance, distance_unit, duration, workout_type, notes')
+    .eq('user_id', userId)
+    .eq('is_public', true)
+    .order('date', { ascending: false })
+    .limit(limit)
+  if (error) throw error
+  return data ?? []
+}

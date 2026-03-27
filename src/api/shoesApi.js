@@ -73,3 +73,14 @@ export async function deleteShoe(shoeId) {
 
   if (error) throw error
 }
+
+// Fetch active shoes for a user (for public profile display)
+export async function fetchPublicShoesForUser(userId) {
+  const { data, error } = await supabase
+    .from('shoes')
+    .select('id, name, brand, total_miles, is_active')
+    .eq('user_id', userId)
+    .eq('is_active', true)
+  if (error) throw error
+  return data ?? []
+}

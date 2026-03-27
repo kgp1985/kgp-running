@@ -10,6 +10,7 @@ import WorkoutTypes from './pages/WorkoutTypes.jsx'
 import Login from './pages/Login.jsx'
 import CoachLog from './pages/CoachLog.jsx'
 import Profile from './pages/Profile.jsx'
+import PublicProfile from './pages/PublicProfile.jsx'
 import Privacy from './pages/Privacy.jsx'
 import Support from './pages/Support.jsx'
 
@@ -49,6 +50,7 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
+            <Route path="/profile/:username" element={<PublicProfile />} />
             <Route path={ROUTES.PRIVACY}  element={<Privacy />} />
             <Route path={ROUTES.SUPPORT}  element={<Support />} />
           </Routes>
